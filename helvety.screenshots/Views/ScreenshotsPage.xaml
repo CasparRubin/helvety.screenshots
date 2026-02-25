@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="helvety.screenshots.Views.ScreenshotsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid Padding="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock FontSize="26" FontWeight="SemiBold" Text="Screenshots" />
+
+        <Border
+            Grid.Row="1"
+            Margin="0,16,0,0"
+            Padding="20"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="12">
+            <Grid>
+                <Border
+                    x:Name="EmptyFolderCallout"
+                    MaxWidth="700"
+                    Padding="28"
+                    Background="{ThemeResource SubtleFillColorTertiaryBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Visibility="Collapsed">
+                    <StackPanel Spacing="10">
+                        <TextBlock
+                            FontSize="32"
+                            FontWeight="SemiBold"
+                            HorizontalAlignment="Center"
+                            Text="No Screenshots Yet" />
+                        <TextBlock
+                            x:Name="EmptyStateMessageText"
+                            FontSize="18"
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            HorizontalAlignment="Center"
+                            TextAlignment="Center"
+                            TextWrapping="WrapWholeWords"
+                            Text="Press Shift+S to create your first screenshot." />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</Page>

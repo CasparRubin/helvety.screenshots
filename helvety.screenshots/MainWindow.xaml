@@ -3,17 +3,67 @@
     x:Class="helvety.screenshots.MainWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:helvety.screenshots"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Title="helvety.screenshots">
+    Title="Helvety Screenshots">
 
     <Window.SystemBackdrop>
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid>
+    <NavigationView
+        x:Name="AppNavigationView"
+        IsBackButtonVisible="Collapsed"
+        IsSettingsVisible="False"
+        PaneDisplayMode="Left"
+        SelectionChanged="AppNavigationView_SelectionChanged">
+        <NavigationView.MenuItems>
+            <NavigationViewItem
+                Content="Screenshots"
+                Icon="Pictures"
+                Tag="screenshots" />
+            <NavigationViewItem
+                Content="Key-Bindings"
+                Icon="Keyboard"
+                Tag="keybindings" />
+            <NavigationViewItem
+                Content="Save Location"
+                Icon="Folder"
+                Tag="save-location" />
+        </NavigationView.MenuItems>
 
-    </Grid>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <ItemsControl
+                x:Name="GlobalIssuesItemsControl"
+                Margin="12,8,12,0"
+                Visibility="Collapsed">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <InfoBar
+                            Margin="0,0,0,8"
+                            IsClosable="False"
+                            IsOpen="True"
+                            Message="{Binding Message}"
+                            Severity="{Binding Severity}"
+                            Title="{Binding Title}">
+                            <InfoBar.ActionButton>
+                                <HyperlinkButton
+                                    Click="GlobalIssueActionButton_Click"
+                                    Content="{Binding ActionText}"
+                                    Tag="{Binding RouteTag}" />
+                            </InfoBar.ActionButton>
+                        </InfoBar>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Frame x:Name="ContentFrame" Grid.Row="1" />
+        </Grid>
+    </NavigationView>
 </Window>
