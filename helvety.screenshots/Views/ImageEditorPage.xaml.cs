@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Rectangle = Microsoft.UI.Xaml.Shapes.Rectangle;
+using Ellipse = Microsoft.UI.Xaml.Shapes.Ellipse;
 using Line = Microsoft.UI.Xaml.Shapes.Line;
 using Polygon = Microsoft.UI.Xaml.Shapes.Polygon;
 using Polyline = Microsoft.UI.Xaml.Shapes.Polyline;
@@ -28,12 +29,17 @@ namespace helvety.screenshots.Views
 {
     public sealed partial class ImageEditorPage : Page
     {
-        private const string DefaultTextColor = "#FFFFFFFF";
+        private const string DefaultPrimaryColor = "#FFD81B60";
+        private const string DefaultTextColor = DefaultPrimaryColor;
+        private const string DefaultBorderColor = "#FFFFFFFF";
+        private const string DefaultShadowColor = "#66000000";
+        private const string DefaultSubtleShadowColor = "#66000000";
         private const string BlurOverlayColor = "#66A0A0A0";
         private const int ResizeHandleSize = 12;
         private const int MinResizableRegionSize = 8;
         private const int MinTextRegionWidth = 80;
         private const int MinTextRegionHeight = 40;
+        private const int MaxHighlightDimPercent = 80;
 
         private enum ResizeHandle
         {
@@ -45,7 +51,9 @@ namespace helvety.screenshots.Views
             SouthEast = 5,
             South = 6,
             SouthWest = 7,
-            West = 8
+            West = 8,
+            ArrowStart = 9,
+            ArrowEnd = 10
         }
 
         private readonly string _filePath;
@@ -56,6 +64,8 @@ namespace helvety.screenshots.Views
         private int _imageHeight;
         private bool _isDraggingSelection;
         private Point _dragStartPoint;
+        private bool _isPreviewingArrow;
+        private Point _arrowPreviewEndPoint;
         private Rectangle? _selectionRectangle;
         private EditorRect? _pendingCropRect;
         private bool _isBusy;
@@ -64,6 +74,7 @@ namespace helvety.screenshots.Views
         private EditorLayer? _dragLayer;
         private Point _lastPointerPoint;
         private TextBox? _inlineTextEditor;
+        private Guid? _editingTextLayerId;
         private Point _inlineTextPoint;
         private int _inlineTextWrapWidth = 260;
         private bool _isCommittingInlineText;
@@ -80,7 +91,11 @@ namespace helvety.screenshots.Views
         private EditorRect _resizeStartBounds;
         private Guid? _resizeLayerId;
         private bool _resizeTargetIsCrop;
+        private double _resizeStartTextFontSize;
         private EditorToolType _settingsTool = EditorToolType.Move;
+        private int _highlightDimPercent = 35;
+        private bool _blurInvertMode;
+        private bool _highlightInvertMode;
 
         public ImageEditorPage(string filePath)
         {
@@ -148,6 +163,12 @@ namespace helvety.screenshots.Views
                 EditorSurfaceGrid.Height = _imageHeight;
                 OverlayCanvas.Width = _imageWidth;
                 OverlayCanvas.Height = _imageHeight;
+                HighlightDimCanvas.Width = _imageWidth;
+                HighlightDimCanvas.Height = _imageHeight;
+                HighlightDimValueText.Text = $"{_highlightDimPercent}%";
+                HighlightDimSlider.Value = _highlightDimPercent;
+                BlurInvertToggle.IsOn = _blurInvertMode;
+                HighlightInvertToggle.IsOn = _highlightInvertMode;
                 UpdateCropActionVisibility();
                 SetActiveTool(EditorToolType.Move);
                 UpdateSelectedTextEditorVisibility();
@@ -276,6 +297,7 @@ namespace helvety.screenshots.Views
             TextToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Text ? Visibility.Visible : Visibility.Collapsed;
             BorderToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Border ? Visibility.Visible : Visibility.Collapsed;
             BlurToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Blur ? Visibility.Visible : Visibility.Collapsed;
+            HighlightToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Highlight ? Visibility.Visible : Visibility.Collapsed;
             ArrowToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Arrow ? Visibility.Visible : Visibility.Collapsed;
             CropToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Crop ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -303,6 +325,7 @@ namespace helvety.screenshots.Views
                 EditorLayerType.Border => EditorToolType.Border,
                 EditorLayerType.Blur => EditorToolType.Blur,
                 EditorLayerType.Arrow => EditorToolType.Arrow,
+                EditorLayerType.Highlight => EditorToolType.Highlight,
                 _ => EditorToolType.Move
             };
         }
@@ -321,7 +344,7 @@ namespace helvety.screenshots.Views
 
         private void UpdateToolButtonVisuals()
         {
-            var selectedBrush = new SolidColorBrush(ColorHelper.FromArgb(70, 66, 133, 244));
+            var selectedBrush = new SolidColorBrush(ColorHelper.FromArgb(70, 216, 27, 96));
             var normalBrush = Application.Current.Resources.TryGetValue("CardBackgroundFillColorDefaultBrush", out var normal)
                 && normal is Brush normalThemeBrush
                 ? normalThemeBrush
@@ -332,6 +355,7 @@ namespace helvety.screenshots.Views
             TextToolButton.Background = highlightedTool == EditorToolType.Text ? selectedBrush : normalBrush;
             BorderToolButton.Background = highlightedTool == EditorToolType.Border ? selectedBrush : normalBrush;
             BlurToolButton.Background = highlightedTool == EditorToolType.Blur ? selectedBrush : normalBrush;
+            HighlightToolButton.Background = highlightedTool == EditorToolType.Highlight ? selectedBrush : normalBrush;
             ArrowToolButton.Background = highlightedTool == EditorToolType.Arrow ? selectedBrush : normalBrush;
             CropToolButton.Background = highlightedTool == EditorToolType.Crop ? selectedBrush : normalBrush;
         }
@@ -349,18 +373,20 @@ namespace helvety.screenshots.Views
                 return;
             }
 
-            if (_activeTool == EditorToolType.Text)
+            if (_inlineTextEditor is not null)
             {
-                if (_inlineTextEditor is not null && IsPointOutsideInlineEditor(point))
+                if (IsPointOutsideInlineEditor(point))
                 {
                     CommitInlineTextEditor();
                 }
-
-                if (_inlineTextEditor is not null)
+                else
                 {
                     return;
                 }
+            }
 
+            if (_activeTool == EditorToolType.Text)
+            {
                 BeginSelectionDrag(point);
                 return;
             }
@@ -390,6 +416,33 @@ namespace helvety.screenshots.Views
             BeginSelectionDrag(point);
         }
 
+        private void OverlayCanvas_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+        {
+            if (_document is null || _inlineTextEditor is not null)
+            {
+                return;
+            }
+
+            var point = e.GetPosition(OverlayCanvas);
+            if (!IsPointInImage(point))
+            {
+                return;
+            }
+
+            if (!SelectTopMostLayerAt(point))
+            {
+                return;
+            }
+
+            if (!TryGetSelectedLayer(out var layer) || layer is not TextLayer textLayer)
+            {
+                return;
+            }
+
+            BeginInlineTextEntryForLayer(textLayer);
+            e.Handled = true;
+        }
+
         private void OverlayCanvas_PointerMoved(object sender, PointerRoutedEventArgs e)
         {
             if (_activeTool == EditorToolType.Move && _isResizingSelection)
@@ -417,6 +470,13 @@ namespace helvety.screenshots.Views
             }
 
             var point = e.GetCurrentPoint(OverlayCanvas).Position;
+            if (_activeTool == EditorToolType.Arrow && _isPreviewingArrow)
+            {
+                _arrowPreviewEndPoint = ClampPointToImage(point);
+                RebuildOverlayVisuals(includeAdorners: true);
+                return;
+            }
+
             UpdateSelectionRectangle(point);
         }
 
@@ -428,6 +488,7 @@ namespace helvety.screenshots.Views
                 _activeResizeHandle = ResizeHandle.None;
                 _resizeLayerId = null;
                 _resizeTargetIsCrop = false;
+                _resizeStartTextFontSize = 0;
                 OverlayCanvas.ReleasePointerCaptures();
                 return;
             }
@@ -439,6 +500,21 @@ namespace helvety.screenshots.Views
             }
 
             var endPoint = e.GetCurrentPoint(OverlayCanvas).Position;
+            if (_activeTool == EditorToolType.Arrow)
+            {
+                _isDraggingSelection = false;
+                _isPreviewingArrow = false;
+                RemoveSelectionRectangle();
+                RebuildOverlayVisuals(includeAdorners: true);
+                if (AddArrowLayer(endPoint, _dragStartPoint))
+                {
+                    await FinalizeRegionPlacementAsync(clearCropSelection: true);
+                }
+
+                _dragLayer = null;
+                return;
+            }
+
             var maybeRegion = CompleteSelectionDrag(endPoint);
             if (maybeRegion is null)
             {
@@ -455,6 +531,16 @@ namespace helvety.screenshots.Views
         {
             _isDraggingSelection = true;
             _dragStartPoint = point;
+            if (_activeTool == EditorToolType.Arrow)
+            {
+                _isPreviewingArrow = true;
+                _arrowPreviewEndPoint = point;
+                RemoveSelectionRectangle();
+                RebuildOverlayVisuals(includeAdorners: true);
+                return;
+            }
+
+            _isPreviewingArrow = false;
             EnsureSelectionRectangle();
             UpdateSelectionRectangle(point);
         }
@@ -462,6 +548,7 @@ namespace helvety.screenshots.Views
         private EditorRect? CompleteSelectionDrag(Point endPoint)
         {
             _isDraggingSelection = false;
+            _isPreviewingArrow = false;
             var region = BuildRegion(_dragStartPoint, endPoint);
             RemoveSelectionRectangle();
             return region.IsEmpty ? null : region;
@@ -480,6 +567,10 @@ namespace helvety.screenshots.Views
                     return;
                 case EditorToolType.Blur:
                     AddBlurLayer(region);
+                    await FinalizeRegionPlacementAsync(clearCropSelection: true);
+                    return;
+                case EditorToolType.Highlight:
+                    AddHighlightLayer(region);
                     await FinalizeRegionPlacementAsync(clearCropSelection: true);
                     return;
                 case EditorToolType.Arrow:
@@ -519,6 +610,7 @@ namespace helvety.screenshots.Views
             var top = Clamp(region.Y, 0, _imageHeight);
             var wrapWidth = Clamp(region.Width, MinTextRegionWidth, Math.Max(MinTextRegionWidth, _imageWidth - left));
             var editorHeight = Clamp(region.Height, MinTextRegionHeight, Math.Max(MinTextRegionHeight, _imageHeight - top));
+            _editingTextLayerId = null;
             _inlineTextPoint = new Point(left, top);
             _inlineTextWrapWidth = wrapWidth;
             _inlineTextEditor = new TextBox
@@ -540,6 +632,38 @@ namespace helvety.screenshots.Views
             _inlineTextEditor.Focus(FocusState.Programmatic);
         }
 
+        private void BeginInlineTextEntryForLayer(TextLayer textLayer)
+        {
+            if (_document is null || _inlineTextEditor is not null)
+            {
+                return;
+            }
+
+            _editingTextLayerId = textLayer.Id;
+            _inlineTextPoint = new Point(textLayer.X, textLayer.Y);
+            _inlineTextWrapWidth = Math.Max(MinTextRegionWidth, textLayer.WrapWidth);
+            var bounds = textLayer.GetBounds();
+            var editorHeight = Math.Max(MinTextRegionHeight, bounds.Height + 12);
+            _inlineTextEditor = new TextBox
+            {
+                Width = _inlineTextWrapWidth,
+                MinHeight = MinTextRegionHeight,
+                Height = editorHeight,
+                FontSize = textLayer.FontSize,
+                FontFamily = new FontFamily(GetFontName(textLayer.FontFamily)),
+                Text = textLayer.Text,
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.Wrap
+            };
+            _inlineTextEditor.KeyDown += InlineTextEditor_KeyDown;
+            _inlineTextEditor.LostFocus += InlineTextEditor_LostFocus;
+            Canvas.SetLeft(_inlineTextEditor, _inlineTextPoint.X);
+            Canvas.SetTop(_inlineTextEditor, _inlineTextPoint.Y);
+            OverlayCanvas.Children.Add(_inlineTextEditor);
+            _inlineTextEditor.Focus(FocusState.Programmatic);
+            _inlineTextEditor.SelectAll();
+        }
+
         private void AddBorderLayer(EditorRect region)
         {
             if (_document is null)
@@ -548,11 +672,14 @@ namespace helvety.screenshots.Views
             }
 
             var thickness = Clamp((int)Math.Round(BorderThicknessNumberBox.Value), 1, 24);
-            var layer = new BorderLayer(region, thickness, GetSelectedColorHex(BorderColorComboBox, "#FFFFA500"))
+            var layer = new BorderLayer(region, thickness, GetSelectedColorHex(BorderColorComboBox, DefaultPrimaryColor))
             {
-                CornerRadius = Clamp((int)Math.Round(BorderCornerRadiusNumberBox.Value), 0, 50)
+                CornerRadius = Clamp((int)Math.Round(BorderCornerRadiusNumberBox.Value), 0, 50),
+                HasShadow = BorderShadowToggle.IsOn,
+                ShadowColorHex = GetSelectedColorHex(BorderShadowColorComboBox, DefaultSubtleShadowColor),
+                ShadowOffset = Clamp((int)Math.Round(BorderShadowOffsetNumberBox.Value), 1, 24)
             };
-            _document.Layers.Add(layer);
+            _document.Layers.Insert(0, layer);
             SelectLayer(layer);
         }
 
@@ -565,7 +692,7 @@ namespace helvety.screenshots.Views
 
             var radius = Clamp((int)Math.Round(BlurRadiusNumberBox.Value), 1, 25);
             var layer = new BlurLayer(region, radius);
-            _document.Layers.Add(layer);
+            _document.Layers.Insert(0, layer);
             SelectLayer(layer);
         }
 
@@ -592,11 +719,29 @@ namespace helvety.screenshots.Views
                 clampedEnd.X,
                 clampedEnd.Y,
                 Clamp((int)Math.Round(ArrowThicknessNumberBox.Value), 1, 24),
-                GetSelectedColorHex(ArrowColorComboBox, "#FFFFA500"),
+                GetSelectedColorHex(ArrowColorComboBox, DefaultPrimaryColor),
                 GetSelectedArrowHeadStyle());
-            _document.Layers.Add(layer);
+            layer.HasBorder = ArrowBorderToggle.IsOn;
+            layer.BorderColorHex = GetSelectedColorHex(ArrowBorderColorComboBox, DefaultBorderColor);
+            layer.BorderThickness = Clamp((int)Math.Round(ArrowBorderThicknessNumberBox.Value), 1, 8);
+            layer.HasShadow = ArrowShadowToggle.IsOn;
+            layer.ShadowColorHex = GetSelectedColorHex(ArrowShadowColorComboBox, DefaultSubtleShadowColor);
+            layer.ShadowOffset = Clamp((int)Math.Round(ArrowShadowOffsetNumberBox.Value), 1, 24);
+            _document.Layers.Insert(0, layer);
             SelectLayer(layer);
             return true;
+        }
+
+        private void AddHighlightLayer(EditorRect region)
+        {
+            if (_document is null)
+            {
+                return;
+            }
+
+            var layer = new HighlightLayer(region);
+            _document.Layers.Insert(0, layer);
+            SelectLayer(layer);
         }
 
         private Point ClampPointToImage(Point point)
@@ -738,9 +883,17 @@ namespace helvety.screenshots.Views
                 _workingPixels = (byte[])_originalPixels.Clone();
                 foreach (var blurLayer in _document.Layers.OfType<BlurLayer>().Where(layer => layer.IsVisible))
                 {
-                    ApplyBoxBlur(_workingPixels, _imageWidth, _imageHeight, blurLayer.Region, blurLayer.Radius);
+                    if (_blurInvertMode)
+                    {
+                        ApplyBoxBlurOutsideRegion(_workingPixels, _imageWidth, _imageHeight, blurLayer.Region, blurLayer.Radius);
+                    }
+                    else
+                    {
+                        ApplyBoxBlur(_workingPixels, _imageWidth, _imageHeight, blurLayer.Region, blurLayer.Radius);
+                    }
                 }
 
+                ApplyHighlightDimToPixels(_workingPixels);
                 await UpdateBaseImageAsync();
                 RebuildOverlayVisuals(includeAdorners: true);
             }
@@ -758,7 +911,7 @@ namespace helvety.screenshots.Views
             }
 
             OverlayCanvas.Children.Clear();
-            foreach (var layer in _document.Layers.Where(item => item.IsVisible))
+            foreach (var layer in _document.Layers.Where(item => item.IsVisible).Reverse())
             {
                 switch (layer)
                 {
@@ -767,24 +920,15 @@ namespace helvety.screenshots.Views
                         break;
 
                     case BorderLayer borderLayer:
-                        var borderRect = new Rectangle
-                        {
-                            Width = borderLayer.Region.Width,
-                            Height = borderLayer.Region.Height,
-                            Stroke = new SolidColorBrush(ParseColor(borderLayer.ColorHex)),
-                            StrokeThickness = borderLayer.Thickness,
-                            RadiusX = borderLayer.CornerRadius,
-                            RadiusY = borderLayer.CornerRadius
-                        };
-                        Canvas.SetLeft(borderRect, borderLayer.Region.X);
-                        Canvas.SetTop(borderRect, borderLayer.Region.Y);
-                        OverlayCanvas.Children.Add(borderRect);
+                        DrawBorderLayer(borderLayer);
                         break;
                     case ArrowLayer arrowLayer:
                         DrawArrowLayer(arrowLayer);
                         break;
                 }
             }
+
+            DrawArrowPreview();
 
             if (includeAdorners && _selectedLayerId.HasValue)
             {
@@ -796,18 +940,26 @@ namespace helvety.screenshots.Views
                     {
                         Width = bounds.Width,
                         Height = bounds.Height,
-                        Stroke = new SolidColorBrush(ColorHelper.FromArgb(255, 66, 133, 244)),
+                        Stroke = new SolidColorBrush(ParseColor(DefaultPrimaryColor)),
                         StrokeThickness = 2,
                         StrokeDashArray = new DoubleCollection { 4, 2 },
-                        Fill = new SolidColorBrush(ColorHelper.FromArgb(20, 66, 133, 244))
+                        Fill = new SolidColorBrush(ColorHelper.FromArgb(35, 216, 27, 96))
                     };
                     Canvas.SetLeft(selectedRect, bounds.X);
                     Canvas.SetTop(selectedRect, bounds.Y);
                     OverlayCanvas.Children.Add(selectedRect);
 
-                    if (selected is BorderLayer or BlurLayer)
+                    if (selected is BorderLayer or BlurLayer or TextLayer)
                     {
                         DrawResizeHandles(bounds);
+                    }
+                    else if (selected is HighlightLayer)
+                    {
+                        DrawResizeHandles(bounds);
+                    }
+                    else if (selected is ArrowLayer arrowLayer)
+                    {
+                        DrawArrowEndpointHandles(arrowLayer);
                     }
                 }
             }
@@ -820,9 +972,9 @@ namespace helvety.screenshots.Views
                     Width = crop.Width,
                     Height = crop.Height,
                     Stroke = _isCropSelected
-                        ? new SolidColorBrush(ColorHelper.FromArgb(255, 66, 133, 244))
-                        : new SolidColorBrush(ColorHelper.FromArgb(200, 66, 133, 244)),
-                    Fill = new SolidColorBrush(ColorHelper.FromArgb(48, 66, 133, 244)),
+                        ? new SolidColorBrush(ParseColor(DefaultPrimaryColor))
+                        : new SolidColorBrush(ColorHelper.FromArgb(220, 216, 27, 96)),
+                    Fill = new SolidColorBrush(ColorHelper.FromArgb(48, 216, 27, 96)),
                     StrokeThickness = _isCropSelected ? 2 : 1.5,
                     StrokeDashArray = new DoubleCollection { 4, 3 }
                 };
@@ -845,6 +997,100 @@ namespace helvety.screenshots.Views
             {
                 OverlayCanvas.Children.Add(_inlineTextEditor);
             }
+        }
+
+        private void ApplyHighlightDimToPixels(byte[] pixels)
+        {
+            if (_document is null || _imageWidth <= 0 || _imageHeight <= 0 || pixels.Length == 0)
+            {
+                return;
+            }
+
+            var dimPercent = Clamp(_highlightDimPercent, 0, MaxHighlightDimPercent);
+            if (dimPercent <= 0)
+            {
+                return;
+            }
+
+            var visibleHighlights = _document.Layers
+                .OfType<HighlightLayer>()
+                .Where(layer => layer.IsVisible)
+                .ToArray();
+            if (visibleHighlights.Length == 0)
+            {
+                return;
+            }
+
+            var highlightedMask = new bool[_imageWidth * _imageHeight];
+            foreach (var highlightLayer in visibleHighlights)
+            {
+                var clampedRegion = ClampRegion(highlightLayer.Region, _imageWidth, _imageHeight);
+                if (clampedRegion.IsEmpty)
+                {
+                    continue;
+                }
+
+                var startX = clampedRegion.X;
+                var endX = clampedRegion.X + clampedRegion.Width;
+                var startY = clampedRegion.Y;
+                var endY = clampedRegion.Y + clampedRegion.Height;
+                for (var y = startY; y < endY; y++)
+                {
+                    var rowOffset = y * _imageWidth;
+                    for (var x = startX; x < endX; x++)
+                    {
+                        highlightedMask[rowOffset + x] = true;
+                    }
+                }
+            }
+
+            var dimFactor = 1d - (dimPercent / 100d);
+            for (var y = 0; y < _imageHeight; y++)
+            {
+                var rowOffset = y * _imageWidth;
+                for (var x = 0; x < _imageWidth; x++)
+                {
+                    var shouldDim = _highlightInvertMode
+                        ? highlightedMask[rowOffset + x]
+                        : !highlightedMask[rowOffset + x];
+                    if (!shouldDim)
+                    {
+                        continue;
+                    }
+
+                    var pixelOffset = (rowOffset + x) * 4;
+                    pixels[pixelOffset] = (byte)Math.Clamp((int)Math.Round(pixels[pixelOffset] * dimFactor), 0, 255);
+                    pixels[pixelOffset + 1] = (byte)Math.Clamp((int)Math.Round(pixels[pixelOffset + 1] * dimFactor), 0, 255);
+                    pixels[pixelOffset + 2] = (byte)Math.Clamp((int)Math.Round(pixels[pixelOffset + 2] * dimFactor), 0, 255);
+                }
+            }
+        }
+
+        private void DrawArrowPreview()
+        {
+            if (!_isPreviewingArrow || _activeTool != EditorToolType.Arrow)
+            {
+                return;
+            }
+
+            var previewLayer = new ArrowLayer(
+                _arrowPreviewEndPoint.X,
+                _arrowPreviewEndPoint.Y,
+                _dragStartPoint.X,
+                _dragStartPoint.Y,
+                Clamp((int)Math.Round(ArrowThicknessNumberBox.Value), 1, 24),
+                GetSelectedColorHex(ArrowColorComboBox, DefaultPrimaryColor),
+                GetSelectedArrowHeadStyle())
+            {
+                HasBorder = ArrowBorderToggle.IsOn,
+                BorderColorHex = GetSelectedColorHex(ArrowBorderColorComboBox, DefaultBorderColor),
+                BorderThickness = Clamp((int)Math.Round(ArrowBorderThicknessNumberBox.Value), 1, 8),
+                HasShadow = ArrowShadowToggle.IsOn,
+                ShadowColorHex = GetSelectedColorHex(ArrowShadowColorComboBox, DefaultSubtleShadowColor),
+                ShadowOffset = Clamp((int)Math.Round(ArrowShadowOffsetNumberBox.Value), 1, 24)
+            };
+
+            DrawArrowLayer(previewLayer);
         }
 
         private void DrawTextLayer(TextLayer textLayer)
@@ -907,26 +1153,75 @@ namespace helvety.screenshots.Views
             OverlayCanvas.Children.Add(mainText);
         }
 
+        private void DrawBorderLayer(BorderLayer borderLayer)
+        {
+            if (borderLayer.HasShadow)
+            {
+                var shadowRect = new Rectangle
+                {
+                    Width = borderLayer.Region.Width,
+                    Height = borderLayer.Region.Height,
+                    Stroke = new SolidColorBrush(ParseColor(borderLayer.ShadowColorHex)),
+                    StrokeThickness = borderLayer.Thickness,
+                    RadiusX = borderLayer.CornerRadius,
+                    RadiusY = borderLayer.CornerRadius
+                };
+                var shadowOffset = Math.Max(1, borderLayer.ShadowOffset);
+                Canvas.SetLeft(shadowRect, borderLayer.Region.X + shadowOffset);
+                Canvas.SetTop(shadowRect, borderLayer.Region.Y + shadowOffset);
+                OverlayCanvas.Children.Add(shadowRect);
+            }
+
+            var borderRect = new Rectangle
+            {
+                Width = borderLayer.Region.Width,
+                Height = borderLayer.Region.Height,
+                Stroke = new SolidColorBrush(ParseColor(borderLayer.ColorHex)),
+                StrokeThickness = borderLayer.Thickness,
+                RadiusX = borderLayer.CornerRadius,
+                RadiusY = borderLayer.CornerRadius
+            };
+            Canvas.SetLeft(borderRect, borderLayer.Region.X);
+            Canvas.SetTop(borderRect, borderLayer.Region.Y);
+            OverlayCanvas.Children.Add(borderRect);
+        }
+
         private void DrawArrowLayer(ArrowLayer arrowLayer)
         {
-            var strokeBrush = new SolidColorBrush(ParseColor(arrowLayer.ColorHex));
-            var thickness = Math.Max(1, arrowLayer.Thickness);
-
-            var line = new Line
+            var baseThickness = Math.Max(1, arrowLayer.Thickness);
+            if (arrowLayer.HasShadow)
             {
-                X1 = arrowLayer.StartX,
-                Y1 = arrowLayer.StartY,
-                X2 = arrowLayer.EndX,
-                Y2 = arrowLayer.EndY,
-                Stroke = strokeBrush,
-                StrokeThickness = thickness,
-                StrokeStartLineCap = PenLineCap.Round,
-                StrokeEndLineCap = PenLineCap.Round
-            };
-            OverlayCanvas.Children.Add(line);
+                var shadowOffset = Math.Max(1, arrowLayer.ShadowOffset);
+                DrawArrowPrimitive(
+                    arrowLayer,
+                    ParseColor(arrowLayer.ShadowColorHex),
+                    baseThickness,
+                    shadowOffset,
+                    shadowOffset);
+            }
 
-            var dx = arrowLayer.EndX - arrowLayer.StartX;
-            var dy = arrowLayer.EndY - arrowLayer.StartY;
+            if (arrowLayer.HasBorder)
+            {
+                var borderThickness = Clamp(arrowLayer.BorderThickness, 1, 8);
+                DrawArrowPrimitive(
+                    arrowLayer,
+                    ParseColor(arrowLayer.BorderColorHex),
+                    baseThickness + (borderThickness * 2));
+            }
+
+            DrawArrowPrimitive(arrowLayer, ParseColor(arrowLayer.ColorHex), baseThickness);
+        }
+
+        private void DrawArrowPrimitive(ArrowLayer arrowLayer, Color color, double thickness, double offsetX = 0, double offsetY = 0)
+        {
+            var strokeBrush = new SolidColorBrush(color);
+            var startX = arrowLayer.StartX + offsetX;
+            var startY = arrowLayer.StartY + offsetY;
+            var tipX = arrowLayer.EndX + offsetX;
+            var tipY = arrowLayer.EndY + offsetY;
+
+            var dx = tipX - startX;
+            var dy = tipY - startY;
             var length = Math.Sqrt((dx * dx) + (dy * dy));
             if (length < 0.001)
             {
@@ -939,10 +1234,34 @@ namespace helvety.screenshots.Views
             var normalY = unitX;
             var headLength = Math.Max(10.0, thickness * 3.5);
             var headWidth = Math.Max(8.0, thickness * 3.0);
-            var tipX = arrowLayer.StartX;
-            var tipY = arrowLayer.StartY;
-            var baseX = tipX + (unitX * headLength);
-            var baseY = tipY + (unitY * headLength);
+
+            var shaftEndX = tipX;
+            var shaftEndY = tipY;
+            if (arrowLayer.HeadStyle == ArrowHeadStyle.Triangle)
+            {
+                shaftEndX = tipX - (unitX * headLength);
+                shaftEndY = tipY - (unitY * headLength);
+            }
+            else if (arrowLayer.HeadStyle == ArrowHeadStyle.Diamond)
+            {
+                shaftEndX = tipX - (unitX * headLength * 2.0);
+                shaftEndY = tipY - (unitY * headLength * 2.0);
+            }
+
+            var line = new Line
+            {
+                X1 = startX,
+                Y1 = startY,
+                X2 = shaftEndX,
+                Y2 = shaftEndY,
+                Stroke = strokeBrush,
+                StrokeThickness = thickness,
+                StrokeStartLineCap = PenLineCap.Round,
+                StrokeEndLineCap = PenLineCap.Round
+            };
+            OverlayCanvas.Children.Add(line);
+            var baseX = tipX - (unitX * headLength);
+            var baseY = tipY - (unitY * headLength);
             var leftX = baseX + (normalX * (headWidth / 2d));
             var leftY = baseY + (normalY * (headWidth / 2d));
             var rightX = baseX - (normalX * (headWidth / 2d));
@@ -951,7 +1270,7 @@ namespace helvety.screenshots.Views
             switch (arrowLayer.HeadStyle)
             {
                 case ArrowHeadStyle.Open:
-                    var openHead = new Polyline
+                    OverlayCanvas.Children.Add(new Polyline
                     {
                         Stroke = strokeBrush,
                         StrokeThickness = thickness,
@@ -964,13 +1283,12 @@ namespace helvety.screenshots.Views
                             new Point(tipX, tipY),
                             new Point(rightX, rightY)
                         }
-                    };
-                    OverlayCanvas.Children.Add(openHead);
+                    });
                     break;
                 case ArrowHeadStyle.Diamond:
-                    var backX = tipX + (unitX * headLength * 1.8);
-                    var backY = tipY + (unitY * headLength * 1.8);
-                    var diamond = new Polygon
+                    var backX = tipX - (unitX * headLength * 2.0);
+                    var backY = tipY - (unitY * headLength * 2.0);
+                    OverlayCanvas.Children.Add(new Polygon
                     {
                         Fill = strokeBrush,
                         Stroke = strokeBrush,
@@ -982,11 +1300,10 @@ namespace helvety.screenshots.Views
                             new Point(backX, backY),
                             new Point(rightX, rightY)
                         }
-                    };
-                    OverlayCanvas.Children.Add(diamond);
+                    });
                     break;
                 default:
-                    var triangle = new Polygon
+                    OverlayCanvas.Children.Add(new Polygon
                     {
                         Fill = strokeBrush,
                         Stroke = strokeBrush,
@@ -997,8 +1314,7 @@ namespace helvety.screenshots.Views
                             new Point(leftX, leftY),
                             new Point(rightX, rightY)
                         }
-                    };
-                    OverlayCanvas.Children.Add(triangle);
+                    });
                     break;
             }
         }
@@ -1217,6 +1533,37 @@ namespace helvety.screenshots.Views
             }
         }
 
+        private static void ApplyBoxBlurOutsideRegion(byte[] pixels, int imageWidth, int imageHeight, EditorRect region, int radius)
+        {
+            if (radius <= 0)
+            {
+                return;
+            }
+
+            var clampedRegion = ClampRegion(region, imageWidth, imageHeight);
+            if (clampedRegion.IsEmpty)
+            {
+                ApplyBoxBlur(pixels, imageWidth, imageHeight, new EditorRect(0, 0, imageWidth, imageHeight), radius);
+                return;
+            }
+
+            var beforeBlur = (byte[])pixels.Clone();
+            ApplyBoxBlur(pixels, imageWidth, imageHeight, new EditorRect(0, 0, imageWidth, imageHeight), radius);
+
+            for (var y = clampedRegion.Y; y < clampedRegion.Y + clampedRegion.Height; y++)
+            {
+                var rowOffset = y * imageWidth;
+                for (var x = clampedRegion.X; x < clampedRegion.X + clampedRegion.Width; x++)
+                {
+                    var pixelOffset = (rowOffset + x) * 4;
+                    pixels[pixelOffset] = beforeBlur[pixelOffset];
+                    pixels[pixelOffset + 1] = beforeBlur[pixelOffset + 1];
+                    pixels[pixelOffset + 2] = beforeBlur[pixelOffset + 2];
+                    pixels[pixelOffset + 3] = beforeBlur[pixelOffset + 3];
+                }
+            }
+        }
+
         private void EnsureSelectionRectangle()
         {
             if (_selectionRectangle is not null)
@@ -1231,7 +1578,7 @@ namespace helvety.screenshots.Views
 
             _selectionRectangle = new Rectangle
             {
-                Stroke = new SolidColorBrush(ColorHelper.FromArgb(255, 255, 214, 10)),
+                Stroke = new SolidColorBrush(ParseColor(DefaultPrimaryColor)),
                 Fill = new SolidColorBrush(ParseColor(BlurOverlayColor)),
                 StrokeThickness = 2,
                 StrokeDashArray = new DoubleCollection { 4, 4 }
@@ -1281,7 +1628,7 @@ namespace helvety.screenshots.Views
                     Width = ResizeHandleSize,
                     Height = ResizeHandleSize,
                     Fill = new SolidColorBrush(Colors.White),
-                    Stroke = new SolidColorBrush(ColorHelper.FromArgb(255, 66, 133, 244)),
+                    Stroke = new SolidColorBrush(ParseColor(DefaultPrimaryColor)),
                     StrokeThickness = 2
                 };
                 Canvas.SetLeft(handle, centerX - (ResizeHandleSize / 2d));
@@ -1290,8 +1637,49 @@ namespace helvety.screenshots.Views
             }
         }
 
+        private void DrawArrowEndpointHandles(ArrowLayer arrowLayer)
+        {
+            DrawArrowEndpointHandle(ResizeHandle.ArrowStart, arrowLayer.StartX, arrowLayer.StartY);
+            DrawArrowEndpointHandle(ResizeHandle.ArrowEnd, arrowLayer.EndX, arrowLayer.EndY);
+        }
+
+        private void DrawArrowEndpointHandle(ResizeHandle handle, double x, double y)
+        {
+            var size = ResizeHandleSize + 2;
+            var endpoint = new Ellipse
+            {
+                Width = size,
+                Height = size,
+                Fill = new SolidColorBrush(Colors.White),
+                Stroke = new SolidColorBrush(ParseColor(DefaultPrimaryColor)),
+                StrokeThickness = 2,
+                Tag = handle
+            };
+            Canvas.SetLeft(endpoint, x - (size / 2d));
+            Canvas.SetTop(endpoint, y - (size / 2d));
+            OverlayCanvas.Children.Add(endpoint);
+        }
+
         private bool TryBeginResize(Point point, PointerRoutedEventArgs e)
         {
+            if (_document is not null &&
+                _selectedLayerId.HasValue &&
+                _document.Layers.FirstOrDefault(item => item.Id == _selectedLayerId.Value) is ArrowLayer arrowLayer)
+            {
+                var endpointHandle = GetArrowEndpointHandleAt(point, arrowLayer);
+                if (endpointHandle is ResizeHandle.ArrowStart or ResizeHandle.ArrowEnd)
+                {
+                    _isResizingSelection = true;
+                    _activeResizeHandle = endpointHandle;
+                    _resizeStartBounds = arrowLayer.GetBounds();
+                    _resizeLayerId = arrowLayer.Id;
+                    _resizeTargetIsCrop = false;
+                    _dragLayer = null;
+                    OverlayCanvas.CapturePointer(e.Pointer);
+                    return true;
+                }
+            }
+
             if (!TryGetActiveResizeTarget(out var bounds, out var layerId, out var isCrop))
             {
                 return false;
@@ -1308,6 +1696,15 @@ namespace helvety.screenshots.Views
             _resizeStartBounds = bounds;
             _resizeLayerId = layerId;
             _resizeTargetIsCrop = isCrop;
+            _resizeStartTextFontSize = 0;
+            if (_document is not null && _resizeLayerId.HasValue)
+            {
+                var layer = _document.Layers.FirstOrDefault(item => item.Id == _resizeLayerId.Value);
+                if (layer is TextLayer textLayer)
+                {
+                    _resizeStartTextFontSize = textLayer.FontSize;
+                }
+            }
             _dragLayer = null;
             OverlayCanvas.CapturePointer(e.Pointer);
             return true;
@@ -1315,6 +1712,12 @@ namespace helvety.screenshots.Views
 
         private void ApplyResize(Point point)
         {
+            if (_activeResizeHandle is ResizeHandle.ArrowStart or ResizeHandle.ArrowEnd)
+            {
+                ApplyArrowEndpointResize(point);
+                return;
+            }
+
             var left = _resizeStartBounds.X;
             var top = _resizeStartBounds.Y;
             var right = _resizeStartBounds.X + _resizeStartBounds.Width;
@@ -1386,6 +1789,43 @@ namespace helvety.screenshots.Views
                     blurLayer.Region = resized;
                     blurLayer.Name = $"Blur ({resized.Width}x{resized.Height})";
                     break;
+                case HighlightLayer highlightLayer:
+                    highlightLayer.Region = resized;
+                    highlightLayer.Name = $"Highlight ({resized.Width}x{resized.Height})";
+                    break;
+                case TextLayer textLayer:
+                    textLayer.X = resized.X;
+                    textLayer.Y = resized.Y;
+                    textLayer.UpdateWrapWidth(resized.Width);
+                    var baseFontSize = _resizeStartTextFontSize > 0 ? _resizeStartTextFontSize : textLayer.FontSize;
+                    var heightRatio = resized.Height / Math.Max(1.0, _resizeStartBounds.Height);
+                    textLayer.FontSize = Math.Clamp(baseFontSize * heightRatio, 8, 180);
+                    break;
+            }
+        }
+
+        private void ApplyArrowEndpointResize(Point point)
+        {
+            if (_document is null || !_resizeLayerId.HasValue)
+            {
+                return;
+            }
+
+            if (_document.Layers.FirstOrDefault(item => item.Id == _resizeLayerId.Value) is not ArrowLayer arrowLayer)
+            {
+                return;
+            }
+
+            var clamped = ClampPointToImage(point);
+            if (_activeResizeHandle == ResizeHandle.ArrowStart)
+            {
+                arrowLayer.StartX = clamped.X;
+                arrowLayer.StartY = clamped.Y;
+            }
+            else if (_activeResizeHandle == ResizeHandle.ArrowEnd)
+            {
+                arrowLayer.EndX = clamped.X;
+                arrowLayer.EndY = clamped.Y;
             }
         }
 
@@ -1417,6 +1857,22 @@ namespace helvety.screenshots.Views
                     isCrop = false;
                     return true;
                 }
+
+                if (layer is HighlightLayer highlightLayer)
+                {
+                    bounds = highlightLayer.Region;
+                    layerId = highlightLayer.Id;
+                    isCrop = false;
+                    return true;
+                }
+
+                if (layer is TextLayer textLayer)
+                {
+                    bounds = textLayer.GetBounds();
+                    layerId = textLayer.Id;
+                    isCrop = false;
+                    return true;
+                }
             }
 
             bounds = default;
@@ -1438,6 +1894,29 @@ namespace helvety.screenshots.Views
             }
 
             return ResizeHandle.None;
+        }
+
+        private ResizeHandle GetArrowEndpointHandleAt(Point point, ArrowLayer arrowLayer)
+        {
+            var tolerance = (ResizeHandleSize + 4) / 2d;
+            if (Distance(point, new Point(arrowLayer.StartX, arrowLayer.StartY)) <= tolerance)
+            {
+                return ResizeHandle.ArrowStart;
+            }
+
+            if (Distance(point, new Point(arrowLayer.EndX, arrowLayer.EndY)) <= tolerance)
+            {
+                return ResizeHandle.ArrowEnd;
+            }
+
+            return ResizeHandle.None;
+        }
+
+        private static double Distance(Point a, Point b)
+        {
+            var dx = a.X - b.X;
+            var dy = a.Y - b.Y;
+            return Math.Sqrt((dx * dx) + (dy * dy));
         }
 
         private static (ResizeHandle Handle, double X, double Y)[] EnumerateHandleCenters(EditorRect bounds)
@@ -1481,7 +1960,6 @@ namespace helvety.screenshots.Views
 
             var selected = _document.Layers
                 .Where(layer => layer.IsVisible)
-                .Reverse()
                 .FirstOrDefault(layer => layer.ContainsPoint(point.X, point.Y));
 
             if (selected is null)
@@ -1543,6 +2021,7 @@ namespace helvety.screenshots.Views
             {
                 MoveSelectedTextLabel.Visibility = Visibility.Collapsed;
                 MoveSelectedTextTextBox.Visibility = Visibility.Collapsed;
+                EditSelectedTextButton.Visibility = Visibility.Collapsed;
                 return;
             }
 
@@ -1551,11 +2030,13 @@ namespace helvety.screenshots.Views
             {
                 MoveSelectedTextLabel.Visibility = Visibility.Collapsed;
                 MoveSelectedTextTextBox.Visibility = Visibility.Collapsed;
+                EditSelectedTextButton.Visibility = Visibility.Collapsed;
                 return;
             }
 
             MoveSelectedTextLabel.Visibility = Visibility.Visible;
             MoveSelectedTextTextBox.Visibility = Visibility.Visible;
+            EditSelectedTextButton.Visibility = Visibility.Visible;
             _isUpdatingSelectedTextUi = true;
             try
             {
@@ -1568,6 +2049,16 @@ namespace helvety.screenshots.Views
             {
                 _isUpdatingSelectedTextUi = false;
             }
+        }
+
+        private void EditSelectedTextButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_inlineTextEditor is not null || !TryGetSelectedLayer(out var selectedLayer) || selectedLayer is not TextLayer textLayer)
+            {
+                return;
+            }
+
+            BeginInlineTextEntryForLayer(textLayer);
         }
 
         private void MoveSelectedTextTextBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -1598,10 +2089,30 @@ namespace helvety.screenshots.Views
             try
             {
                 var text = _inlineTextEditor.Text;
+                var editingLayerId = _editingTextLayerId;
+                _editingTextLayerId = null;
                 _inlineTextEditor.KeyDown -= InlineTextEditor_KeyDown;
                 _inlineTextEditor.LostFocus -= InlineTextEditor_LostFocus;
                 OverlayCanvas.Children.Remove(_inlineTextEditor);
                 _inlineTextEditor = null;
+
+                if (editingLayerId.HasValue)
+                {
+                    var existingLayer = _document.Layers.FirstOrDefault(item => item.Id == editingLayerId.Value);
+                    if (existingLayer is TextLayer existingTextLayer && !string.IsNullOrWhiteSpace(text))
+                    {
+                        existingTextLayer.UpdateText(text);
+                    }
+
+                    if (existingLayer is not null)
+                    {
+                        SelectLayer(existingLayer);
+                    }
+
+                    SetActiveTool(EditorToolType.Move);
+                    _ = RecomposeAsync();
+                    return;
+                }
 
                 if (string.IsNullOrWhiteSpace(text))
                 {
@@ -1619,14 +2130,15 @@ namespace helvety.screenshots.Views
                     _inlineTextWrapWidth)
                 {
                     HasBorder = TextBorderToggle.IsOn,
-                    BorderColorHex = GetSelectedColorHex(TextBorderColorComboBox, "#FF000000"),
+                    BorderColorHex = GetSelectedColorHex(TextBorderColorComboBox, DefaultBorderColor),
                     BorderThickness = Clamp((int)Math.Round(TextBorderThicknessNumberBox.Value), 1, 6),
                     HasShadow = TextShadowToggle.IsOn,
                     ShadowOffset = Clamp((int)Math.Round(TextShadowOffsetNumberBox.Value), 1, 12),
+                    ShadowColorHex = GetSelectedColorHex(TextShadowColorComboBox, DefaultShadowColor),
                     FontFamily = GetSelectedFont()
                 };
 
-                _document.Layers.Add(layer);
+                _document.Layers.Insert(0, layer);
                 SelectLayer(layer);
                 SetActiveTool(EditorToolType.Move);
                 _ = RecomposeAsync();
@@ -1644,6 +2156,7 @@ namespace helvety.screenshots.Views
                 return;
             }
 
+            _editingTextLayerId = null;
             _inlineTextEditor.KeyDown -= InlineTextEditor_KeyDown;
             _inlineTextEditor.LostFocus -= InlineTextEditor_LostFocus;
             OverlayCanvas.Children.Remove(_inlineTextEditor);
@@ -1684,17 +2197,37 @@ namespace helvety.screenshots.Views
 
         private async void PickTextBorderColorButton_Click(object sender, RoutedEventArgs e)
         {
-            await PickColorForComboBoxAsync(TextBorderColorComboBox, "#FF000000", "Pick text border color");
+            await PickColorForComboBoxAsync(TextBorderColorComboBox, DefaultBorderColor, "Pick text border color");
         }
 
         private async void PickBorderColorButton_Click(object sender, RoutedEventArgs e)
         {
-            await PickColorForComboBoxAsync(BorderColorComboBox, "#FFFFA500", "Pick border color");
+            await PickColorForComboBoxAsync(BorderColorComboBox, DefaultPrimaryColor, "Pick border color");
+        }
+
+        private async void PickBorderShadowColorButton_Click(object sender, RoutedEventArgs e)
+        {
+            await PickColorForComboBoxAsync(BorderShadowColorComboBox, DefaultSubtleShadowColor, "Pick border shadow color");
         }
 
         private async void PickArrowColorButton_Click(object sender, RoutedEventArgs e)
         {
-            await PickColorForComboBoxAsync(ArrowColorComboBox, "#FFFFA500", "Pick arrow color");
+            await PickColorForComboBoxAsync(ArrowColorComboBox, DefaultPrimaryColor, "Pick arrow color");
+        }
+
+        private async void PickTextShadowColorButton_Click(object sender, RoutedEventArgs e)
+        {
+            await PickColorForComboBoxAsync(TextShadowColorComboBox, DefaultShadowColor, "Pick text shadow color");
+        }
+
+        private async void PickArrowBorderColorButton_Click(object sender, RoutedEventArgs e)
+        {
+            await PickColorForComboBoxAsync(ArrowBorderColorComboBox, DefaultBorderColor, "Pick arrow border color");
+        }
+
+        private async void PickArrowShadowColorButton_Click(object sender, RoutedEventArgs e)
+        {
+            await PickColorForComboBoxAsync(ArrowShadowColorComboBox, DefaultSubtleShadowColor, "Pick arrow shadow color");
         }
 
         private void ToolSettingValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
@@ -1705,6 +2238,40 @@ namespace helvety.screenshots.Views
             }
 
             ApplySettingsToSelectedLayer();
+        }
+
+        private void HighlightDimSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
+        {
+            if (_isSyncingToolSettings)
+            {
+                return;
+            }
+
+            _highlightDimPercent = Clamp((int)Math.Round(e.NewValue), 0, MaxHighlightDimPercent);
+            HighlightDimValueText.Text = $"{_highlightDimPercent}%";
+            _ = RecomposeAsync();
+        }
+
+        private void BlurInvertToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_isSyncingToolSettings)
+            {
+                return;
+            }
+
+            _blurInvertMode = BlurInvertToggle.IsOn;
+            _ = RecomposeAsync();
+        }
+
+        private void HighlightInvertToggle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_isSyncingToolSettings)
+            {
+                return;
+            }
+
+            _highlightInvertMode = HighlightInvertToggle.IsOn;
+            _ = RecomposeAsync();
         }
 
         private void ToolSettingToggled(object sender, RoutedEventArgs e)
@@ -1737,20 +2304,36 @@ namespace helvety.screenshots.Views
                         TextBorderThicknessNumberBox.Value = textLayer.BorderThickness;
                         TextShadowToggle.IsOn = textLayer.HasShadow;
                         TextShadowOffsetNumberBox.Value = textLayer.ShadowOffset;
+                        SetComboBoxSelectedColor(TextShadowColorComboBox, textLayer.ShadowColorHex);
                         SelectComboItemByContent(TextFontComboBox, GetFontName(textLayer.FontFamily));
                         break;
                     case BorderLayer borderLayer:
                         BorderThicknessNumberBox.Value = borderLayer.Thickness;
                         BorderCornerRadiusNumberBox.Value = borderLayer.CornerRadius;
                         SetComboBoxSelectedColor(BorderColorComboBox, borderLayer.ColorHex);
+                        BorderShadowToggle.IsOn = borderLayer.HasShadow;
+                        SetComboBoxSelectedColor(BorderShadowColorComboBox, borderLayer.ShadowColorHex);
+                        BorderShadowOffsetNumberBox.Value = borderLayer.ShadowOffset;
                         break;
                     case BlurLayer blurLayer:
                         BlurRadiusNumberBox.Value = blurLayer.Radius;
+                        BlurInvertToggle.IsOn = _blurInvertMode;
                         break;
                     case ArrowLayer arrowLayer:
                         ArrowThicknessNumberBox.Value = arrowLayer.Thickness;
                         SetComboBoxSelectedColor(ArrowColorComboBox, arrowLayer.ColorHex);
+                        ArrowBorderToggle.IsOn = arrowLayer.HasBorder;
+                        SetComboBoxSelectedColor(ArrowBorderColorComboBox, arrowLayer.BorderColorHex);
+                        ArrowBorderThicknessNumberBox.Value = arrowLayer.BorderThickness;
+                        ArrowShadowToggle.IsOn = arrowLayer.HasShadow;
+                        SetComboBoxSelectedColor(ArrowShadowColorComboBox, arrowLayer.ShadowColorHex);
+                        ArrowShadowOffsetNumberBox.Value = arrowLayer.ShadowOffset;
                         SelectComboItemByTag(ArrowHeadComboBox, arrowLayer.HeadStyle.ToString());
+                        break;
+                    case HighlightLayer:
+                        HighlightDimSlider.Value = _highlightDimPercent;
+                        HighlightDimValueText.Text = $"{_highlightDimPercent}%";
+                        HighlightInvertToggle.IsOn = _highlightInvertMode;
                         break;
                 }
             }
@@ -1800,17 +2383,21 @@ namespace helvety.screenshots.Views
                 textLayer.FontSize = Clamp((int)Math.Round(TextSizeNumberBox.Value), 8, 180);
                 textLayer.ColorHex = GetSelectedColorHex(TextColorComboBox, DefaultTextColor);
                 textLayer.HasBorder = TextBorderToggle.IsOn;
-                textLayer.BorderColorHex = GetSelectedColorHex(TextBorderColorComboBox, "#FF000000");
+                textLayer.BorderColorHex = GetSelectedColorHex(TextBorderColorComboBox, DefaultBorderColor);
                 textLayer.BorderThickness = Clamp((int)Math.Round(TextBorderThicknessNumberBox.Value), 1, 6);
                 textLayer.HasShadow = TextShadowToggle.IsOn;
                 textLayer.ShadowOffset = Clamp((int)Math.Round(TextShadowOffsetNumberBox.Value), 1, 12);
+                textLayer.ShadowColorHex = GetSelectedColorHex(TextShadowColorComboBox, DefaultShadowColor);
                 textLayer.FontFamily = GetSelectedFont();
             }
             else if (layer is BorderLayer borderLayer)
             {
                 borderLayer.Thickness = Clamp((int)Math.Round(BorderThicknessNumberBox.Value), 1, 24);
                 borderLayer.CornerRadius = Clamp((int)Math.Round(BorderCornerRadiusNumberBox.Value), 0, 50);
-                borderLayer.ColorHex = GetSelectedColorHex(BorderColorComboBox, "#FFFFA500");
+                borderLayer.ColorHex = GetSelectedColorHex(BorderColorComboBox, DefaultPrimaryColor);
+                borderLayer.HasShadow = BorderShadowToggle.IsOn;
+                borderLayer.ShadowColorHex = GetSelectedColorHex(BorderShadowColorComboBox, DefaultSubtleShadowColor);
+                borderLayer.ShadowOffset = Clamp((int)Math.Round(BorderShadowOffsetNumberBox.Value), 1, 24);
             }
             else if (layer is BlurLayer blurLayer)
             {
@@ -1819,7 +2406,13 @@ namespace helvety.screenshots.Views
             else if (layer is ArrowLayer arrowLayer)
             {
                 arrowLayer.Thickness = Clamp((int)Math.Round(ArrowThicknessNumberBox.Value), 1, 24);
-                arrowLayer.ColorHex = GetSelectedColorHex(ArrowColorComboBox, "#FFFFA500");
+                arrowLayer.ColorHex = GetSelectedColorHex(ArrowColorComboBox, DefaultPrimaryColor);
+                arrowLayer.HasBorder = ArrowBorderToggle.IsOn;
+                arrowLayer.BorderColorHex = GetSelectedColorHex(ArrowBorderColorComboBox, DefaultBorderColor);
+                arrowLayer.BorderThickness = Clamp((int)Math.Round(ArrowBorderThicknessNumberBox.Value), 1, 8);
+                arrowLayer.HasShadow = ArrowShadowToggle.IsOn;
+                arrowLayer.ShadowColorHex = GetSelectedColorHex(ArrowShadowColorComboBox, DefaultSubtleShadowColor);
+                arrowLayer.ShadowOffset = Clamp((int)Math.Round(ArrowShadowOffsetNumberBox.Value), 1, 24);
                 arrowLayer.HeadStyle = GetSelectedArrowHeadStyle();
             }
 

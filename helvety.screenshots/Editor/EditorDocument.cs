@@ -10,7 +10,8 @@ namespace helvety.screenshots.Editor
         Border = 2,
         Blur = 3,
         Arrow = 4,
-        Crop = 5
+        Highlight = 5,
+        Crop = 6
     }
 
     internal enum EditorLayerType
@@ -18,7 +19,8 @@ namespace helvety.screenshots.Editor
         Text = 0,
         Border = 1,
         Blur = 2,
-        Arrow = 3
+        Arrow = 3,
+        Highlight = 4
     }
 
     internal enum ArrowHeadStyle
@@ -97,17 +99,17 @@ namespace helvety.screenshots.Editor
 
         internal string FontFamily { get; set; } = "Segoe UI";
 
-        internal bool HasBorder { get; set; }
+        internal bool HasBorder { get; set; } = true;
 
-        internal string BorderColorHex { get; set; } = "#FF000000";
+        internal string BorderColorHex { get; set; } = "#FFFFFFFF";
 
         internal int BorderThickness { get; set; } = 1;
 
-        internal bool HasShadow { get; set; }
+        internal bool HasShadow { get; set; } = true;
 
         internal int ShadowOffset { get; set; } = 2;
 
-        internal string ShadowColorHex { get; set; } = "#99000000";
+        internal string ShadowColorHex { get; set; } = "#66000000";
 
         internal int WrapWidth { get; private set; }
 
@@ -169,6 +171,11 @@ namespace helvety.screenshots.Editor
             Name = $"Text: {TrimName(Text)}";
         }
 
+        internal void UpdateWrapWidth(int width)
+        {
+            WrapWidth = Math.Max(1, width);
+        }
+
         private static string TrimName(string text)
         {
             if (string.IsNullOrWhiteSpace(text))
@@ -198,6 +205,12 @@ namespace helvety.screenshots.Editor
         internal int CornerRadius { get; set; }
 
         internal string ColorHex { get; set; }
+
+        internal bool HasShadow { get; set; } = true;
+
+        internal string ShadowColorHex { get; set; } = "#66000000";
+
+        internal int ShadowOffset { get; set; } = 2;
 
         internal override EditorRect GetBounds()
         {
@@ -260,6 +273,40 @@ namespace helvety.screenshots.Editor
         }
     }
 
+    internal sealed class HighlightLayer : EditorLayer
+    {
+        internal HighlightLayer(EditorRect region)
+            : base($"Highlight ({region.Width}x{region.Height})", EditorLayerType.Highlight)
+        {
+            Region = region;
+        }
+
+        internal EditorRect Region { get; set; }
+
+        internal override EditorRect GetBounds()
+        {
+            return Region;
+        }
+
+        internal override bool ContainsPoint(double x, double y)
+        {
+            var region = Region;
+            return x >= region.X &&
+                   y >= region.Y &&
+                   x <= region.X + region.Width &&
+                   y <= region.Y + region.Height;
+        }
+
+        internal override void MoveBy(double deltaX, double deltaY, int maxWidth, int maxHeight)
+        {
+            var targetX = (int)Math.Round(Region.X + deltaX);
+            var targetY = (int)Math.Round(Region.Y + deltaY);
+            targetX = Math.Clamp(targetX, 0, Math.Max(0, maxWidth - Region.Width));
+            targetY = Math.Clamp(targetY, 0, Math.Max(0, maxHeight - Region.Height));
+            Region = Region with { X = targetX, Y = targetY };
+        }
+    }
+
     internal sealed class ArrowLayer : EditorLayer
     {
         internal ArrowLayer(double startX, double startY, double endX, double endY, double thickness, string colorHex, ArrowHeadStyle headStyle)
@@ -287,6 +334,18 @@ namespace helvety.screenshots.Editor
         internal string ColorHex { get; set; }
 
         internal ArrowHeadStyle HeadStyle { get; set; }
+
+        internal bool HasBorder { get; set; } = true;
+
+        internal string BorderColorHex { get; set; } = "#FFFFFFFF";
+
+        internal int BorderThickness { get; set; } = 1;
+
+        internal bool HasShadow { get; set; } = true;
+
+        internal string ShadowColorHex { get; set; } = "#66000000";
+
+        internal int ShadowOffset { get; set; } = 2;
 
         internal override EditorRect GetBounds()
         {

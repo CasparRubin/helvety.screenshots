@@ -52,11 +52,11 @@ namespace helvety.screenshots.Capture
 
         private static readonly double[][] BorderPaletteHueOffsets =
         {
-            new[] { 0.0, 45.0, 95.0, 165.0, 245.0 },
-            new[] { 12.0, 74.0, 150.0, 218.0, 298.0 },
-            new[] { 300.0, 340.0, 28.0, 84.0, 156.0 },
-            new[] { 182.0, 218.0, 252.0, 308.0, 20.0 },
-            new[] { 88.0, 132.0, 186.0, 242.0, 324.0 }
+            new[] { 336.0, 344.0, 352.0, 2.0, 12.0 },
+            new[] { 328.0, 336.0, 346.0, 356.0, 8.0 },
+            new[] { 322.0, 332.0, 342.0, 354.0, 6.0 },
+            new[] { 330.0, 340.0, 350.0, 0.0, 10.0 },
+            new[] { 334.0, 344.0, 354.0, 4.0, 14.0 }
         };
 
         private readonly FreezeFrame _freezeFrame;
@@ -70,8 +70,8 @@ namespace helvety.screenshots.Capture
         private readonly GradientStop[] _snapBorderGradientStops;
         private readonly GradientStop[] _snapBorderChaseGradientStops;
         private readonly GradientStop[] _snapBorderGlowGradientStops;
-        private readonly SolidColorBrush _crosshairBaseBrush = new(Color.FromArgb(255, 138, 138, 138));
-        private readonly SolidColorBrush _crosshairAccentBrush = new(Color.FromArgb(255, 190, 190, 190));
+        private readonly SolidColorBrush _crosshairBaseBrush = new(Color.FromArgb(255, 186, 92, 126));
+        private readonly SolidColorBrush _crosshairAccentBrush = new(Color.FromArgb(255, 216, 27, 96));
         private TaskCompletionSource<SelectionAction> _selectionCompletionSource = new();
         private readonly nint _windowHandle;
         private readonly DispatcherQueueTimer _colorDriftTimer;

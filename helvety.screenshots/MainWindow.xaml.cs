@@ -1,4 +1,6 @@
 using helvety.screenshots.Views;
+using H.NotifyIcon;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -6,7 +8,9 @@ using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Text;
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Threading.Tasks;
+using WinRT.Interop;
 
 namespace helvety.screenshots
 {
@@ -18,10 +22,13 @@ namespace helvety.screenshots
         private static readonly TimeSpan ToastDuration = TimeSpan.FromSeconds(3.2);
         private static readonly TimeSpan ToastFadeOutDuration = TimeSpan.FromMilliseconds(220);
         private readonly ObservableCollection<GlobalSetupIssue> _globalIssues = new();
+        private bool _allowFullExit;
+        internal bool IsHiddenToTray { get; private set; }
 
         public MainWindow()
         {
             InitializeComponent();
+            ApplyWindowIcon();
             GlobalIssuesItemsControl.ItemsSource = _globalIssues;
             SettingsService.SettingsChanged += SettingsService_SettingsChanged;
             App.CaptureStatusPublished += App_CaptureStatusPublished;
@@ -32,12 +39,69 @@ namespace helvety.screenshots
             RefreshGlobalIssues();
         }
 
+        private void ApplyWindowIcon()
+        {
+            try
+            {
+                var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Square44x44Logo.scale-200.png");
+                if (!File.Exists(iconPath))
+                {
+                    return;
+                }
+
+                var hwnd = WindowNative.GetWindowHandle(this);
+                var windowId = Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd);
+                var appWindow = AppWindow.GetFromWindowId(windowId);
+                appWindow.SetIcon(iconPath);
+            }
+            catch
+            {
+                // Keep startup resilient if the icon cannot be applied on some environments.
+            }
+        }
+
         private void MainWindow_Closed(object sender, WindowEventArgs args)
         {
+            if (!_allowFullExit && SettingsService.Load().MinimizeToTrayOnClose)
+            {
+                args.Handled = true;
+                HideToTray();
+                return;
+            }
+
             SettingsService.SettingsChanged -= SettingsService_SettingsChanged;
             App.CaptureStatusPublished -= App_CaptureStatusPublished;
             InAppToastService.ToastRequested -= InAppToastService_ToastRequested;
             Closed -= MainWindow_Closed;
+        }
+
+        internal void RestoreFromTray()
+        {
+            if (!IsHiddenToTray)
+            {
+                Activate();
+                return;
+            }
+
+            WindowExtensions.Show(this);
+            IsHiddenToTray = false;
+            Activate();
+        }
+
+        internal void RequestFullExit()
+        {
+            _allowFullExit = true;
+        }
+
+        private void HideToTray()
+        {
+            if (IsHiddenToTray)
+            {
+                return;
+            }
+
+            WindowExtensions.Hide(this);
+            IsHiddenToTray = true;
         }
 
         private void SettingsService_SettingsChanged()

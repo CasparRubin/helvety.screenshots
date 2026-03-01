@@ -2,13 +2,15 @@ using Microsoft.UI.Xaml;
 using System;
 using System.Threading.Tasks;
 using helvety.screenshots.Capture;
+using helvety.screenshots.Services;
 
 namespace helvety.screenshots
 {
     public partial class App : Application
     {
-        private Window? _window;
+        private MainWindow? _window;
         private CaptureCoordinator? _captureCoordinator;
+        private TrayIconService? _trayIconService;
         internal static Window? MainAppWindow { get; private set; }
         internal static HotkeyService? HotkeyService { get; private set; }
         internal static event Action<string>? CaptureStatusPublished;
@@ -39,16 +41,27 @@ namespace helvety.screenshots
             HotkeyService.HotkeyPressed += HotkeyService_HotkeyPressed;
             HotkeyService.Start();
             _window.Closed += MainWindow_Closed;
+            _trayIconService = new TrayIconService(
+                openMainWindow: RestoreMainWindowFromTray,
+                exitApplication: ExitApplication);
         }
 
         private void MainWindow_Closed(object sender, WindowEventArgs args)
         {
+            if (args.Handled)
+            {
+                return;
+            }
+
             if (HotkeyService is not null)
             {
                 HotkeyService.HotkeyPressed -= HotkeyService_HotkeyPressed;
                 HotkeyService.Dispose();
                 HotkeyService = null;
             }
+
+            _trayIconService?.Dispose();
+            _trayIconService = null;
         }
 
         private void HotkeyService_HotkeyPressed(string hotkeyDisplay)
@@ -65,7 +78,27 @@ namespace helvety.screenshots
                 return;
             }
 
-            await _captureCoordinator.StartSelectionAsync(message => CaptureStatusPublished?.Invoke(message));
+            var restoreWindowAfterCapture = _window?.IsHiddenToTray == true;
+            var sessionResult = await _captureCoordinator.StartSelectionAsync(message => CaptureStatusPublished?.Invoke(message));
+            if (restoreWindowAfterCapture && sessionResult.SavedScreenshotCount > 0)
+            {
+                _window?.DispatcherQueue.TryEnqueue(RestoreMainWindowFromTray);
+            }
+        }
+
+        private void RestoreMainWindowFromTray()
+        {
+            _window?.RestoreFromTray();
+        }
+
+        private void ExitApplication()
+        {
+            _window?.DispatcherQueue.TryEnqueue(() =>
+            {
+                _window?.RequestFullExit();
+                _window?.Close();
+                Exit();
+            });
         }
     }
 }

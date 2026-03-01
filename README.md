@@ -10,6 +10,7 @@ Expect rapid changes, incomplete features, and occasional breaking behavior whil
 ## Current Focus
 
 - Global hotkey-triggered screenshot mode
+- Close-to-tray behavior (notification area) with optional full-exit-on-close setting
 - Frozen-screen capture overlay
 - Window snapping with visual highlight
 - Free-rectangle selection
@@ -17,23 +18,33 @@ Expect rapid changes, incomplete features, and occasional breaking behavior whil
 - Screenshots page with live folder refresh after new captures
 - Thumbnail previews for common image formats (PNG, JPG/JPEG, BMP, GIF, TIFF; WebP when codec is installed)
 - File metadata shown as European date/time format (`dd.MM.yyyy HH:mm`) plus relative age (`... ago`)
+- Built-in image editor tools (Move, Text, Border, Blur, Highlight, Arrow, Crop)
+- Layer list with drag-and-drop reordering (top item is rendered in front)
+- Arrow drawing with live preview while dragging
+- Quick text re-edit via selected-layer editor controls
+- Blur + Highlight invert modes (toggle whether effect targets the selection or the outside area)
 - Iterative UX polish (overlay guidance, animation, interaction tuning)
 - Border FX personalization (intensity profile, rotating palettes, adaptive chase speed)
 - Settings-controlled overlay guidance visibility
+- Restore main window after hidden-tray capture when at least one screenshot is saved
 
 ## Tech Stack
 
 - .NET 8
 - WinUI 3 (Windows App SDK)
 - Native Win32 interop for hooks, hit-testing, and capture support
+- `H.NotifyIcon.WinUI` for notification area tray integration
 
 ## Run Locally
 
 1. Open the solution in Visual Studio 2022 (with WinUI/.NET desktop workloads).
 2. Build and run the `helvety.screenshots` project.
 3. Configure save folder and hotkey in the app settings.
-4. (Optional) Tune screenshot border intensity in `Settings > Screenshot Border Effects`.
-5. (Optional) Toggle screenshot overlay guidance visibility in settings.
+4. (Optional) Tune screenshot border intensity in `Settings > Screenshot Mode > Border Effects`.
+5. (Optional) Toggle screenshot overlay guidance visibility in `Settings > Screenshot Mode`.
+6. (Optional) Configure close behavior in `Settings > App Behavior`:
+   - Enabled (default): closing keeps the app running in the notification area so hotkeys keep working.
+   - Disabled: closing fully exits the app.
 
 ## Notes
 

@@ -30,19 +30,20 @@ namespace helvety.screenshots.Capture
             _dispatcherQueue = dispatcherQueue;
         }
 
-        public async Task StartSelectionAsync(Action<string> publishStatus)
+        public async Task<CaptureSessionResult> StartSelectionAsync(Action<string> publishStatus)
         {
             if (!await _captureGate.WaitAsync(0))
             {
-                return;
+                return new CaptureSessionResult(0, WasCanceled: false);
             }
 
+            var savedScreenshotCount = 0;
             try
             {
                 if (!SettingsService.TryGetEffectiveSaveFolderPath(out var outputFolderPath))
                 {
                     publishStatus("Capture failed: no writable save folder configured.");
-                    return;
+                    return new CaptureSessionResult(0, WasCanceled: false);
                 }
 
                 var captureSettings = SettingsService.Load();
@@ -54,7 +55,7 @@ namespace helvety.screenshots.Capture
                 catch (Exception ex)
                 {
                     publishStatus($"Capture failed while freezing screen ({ex.Message}).");
-                    return;
+                    return new CaptureSessionResult(0, WasCanceled: false);
                 }
 
                 var showInstructions = captureSettings.ShowScreenshotOverlayInstructions;
@@ -75,7 +76,7 @@ namespace helvety.screenshots.Capture
                             overlay.Close();
                             return true;
                         });
-                        return;
+                        return new CaptureSessionResult(savedScreenshotCount, WasCanceled: false);
                     }
 
                     if (action.Mode == SelectionCommitMode.Cancel || !action.Bounds.HasValue)
@@ -87,7 +88,7 @@ namespace helvety.screenshots.Capture
                             return true;
                         });
                         publishStatus("Capture canceled.");
-                        return;
+                        return new CaptureSessionResult(savedScreenshotCount, WasCanceled: true);
                     }
 
                     SavedSelectionResult saveResult;
@@ -101,8 +102,10 @@ namespace helvety.screenshots.Capture
                     catch (Exception ex)
                     {
                         publishStatus($"Capture failed while saving image ({ex.Message}).");
-                        return;
+                        return new CaptureSessionResult(savedScreenshotCount, WasCanceled: false);
                     }
+
+                    savedScreenshotCount++;
 
                     if (action.Mode == SelectionCommitMode.RightCommitContinue)
                     {
@@ -131,11 +134,11 @@ namespace helvety.screenshots.Capture
                     catch (Exception ex)
                     {
                         publishStatus($"Saved screenshot but failed to copy clipboard ({ex.Message}).");
-                        return;
+                        return new CaptureSessionResult(savedScreenshotCount, WasCanceled: false);
                     }
 
                     publishStatus($"Saved screenshot and copied to clipboard: {saveResult.OutputPath}");
-                    return;
+                    return new CaptureSessionResult(savedScreenshotCount, WasCanceled: false);
                 }
             }
             finally
@@ -196,4 +199,6 @@ namespace helvety.screenshots.Capture
         }
 
     }
+
+    internal readonly record struct CaptureSessionResult(int SavedScreenshotCount, bool WasCanceled);
 }

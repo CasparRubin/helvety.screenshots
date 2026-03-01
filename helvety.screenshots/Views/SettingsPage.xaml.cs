@@ -51,6 +51,7 @@ namespace helvety.screenshots.Views
         private uint _editorModifiers;
         private bool _isUpdatingBorderIntensitySelection;
         private bool _isUpdatingOverlayInstructionSelection;
+        private bool _isUpdatingMinimizeToTraySelection;
 
         public SettingsPage()
         {
@@ -96,6 +97,7 @@ namespace helvety.screenshots.Views
         {
             InitializeBorderIntensitySelection();
             InitializeOverlayInstructionSelection();
+            InitializeMinimizeToTraySelection();
 
             if (SettingsService.TryGetEffectiveSaveFolderPath(out var effectiveSaveFolderPath))
             {
@@ -146,6 +148,20 @@ namespace helvety.screenshots.Views
             finally
             {
                 _isUpdatingOverlayInstructionSelection = false;
+            }
+        }
+
+        private void InitializeMinimizeToTraySelection()
+        {
+            var settings = SettingsService.Load();
+            _isUpdatingMinimizeToTraySelection = true;
+            try
+            {
+                MinimizeToTrayOnCloseCheckBox.IsChecked = settings.MinimizeToTrayOnClose;
+            }
+            finally
+            {
+                _isUpdatingMinimizeToTraySelection = false;
             }
         }
 
@@ -552,6 +568,17 @@ namespace helvety.screenshots.Views
 
             var shouldShowOverlayInstructions = ShowOverlayInstructionsCheckBox.IsChecked != false;
             SettingsService.SaveShowScreenshotOverlayInstructions(shouldShowOverlayInstructions);
+        }
+
+        private void MinimizeToTrayOnCloseCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isUpdatingMinimizeToTraySelection)
+            {
+                return;
+            }
+
+            var shouldMinimizeToTray = MinimizeToTrayOnCloseCheckBox.IsChecked != false;
+            SettingsService.SaveMinimizeToTrayOnClose(shouldMinimizeToTray);
         }
 
         private async void ResetSettingsButton_Click(object sender, RoutedEventArgs e)

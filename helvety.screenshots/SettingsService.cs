@@ -16,6 +16,7 @@ namespace helvety.screenshots
         private const string DefaultHotkeySequence = "83,83,83";
         private const ScreenshotBorderIntensity DefaultScreenshotBorderIntensity = ScreenshotBorderIntensity.Balanced;
         private const bool DefaultShowScreenshotOverlayInstructions = true;
+        private const bool DefaultMinimizeToTrayOnClose = true;
 
         internal static event Action? SaveFolderPathChanged;
         internal static event Action? SettingsChanged;
@@ -32,6 +33,7 @@ namespace helvety.screenshots
         private const string SaveFolderClearedKey = "SaveFolderCleared";
         private const string ScreenshotBorderIntensityKey = "ScreenshotBorderIntensity";
         private const string ShowScreenshotOverlayInstructionsKey = "ShowScreenshotOverlayInstructions";
+        private const string MinimizeToTrayOnCloseKey = "MinimizeToTrayOnClose";
         private static readonly string[] ManagedSettingKeys =
         {
             SettingsVersionKey,
@@ -43,7 +45,8 @@ namespace helvety.screenshots
             HotkeyDisplayKey,
             HotkeyClearedKey,
             ScreenshotBorderIntensityKey,
-            ShowScreenshotOverlayInstructionsKey
+            ShowScreenshotOverlayInstructionsKey,
+            MinimizeToTrayOnCloseKey
         };
 
         internal static AppSettings Load()
@@ -69,6 +72,10 @@ namespace helvety.screenshots
                                                     showOverlayValue is bool showOverlayInstructions
                 ? showOverlayInstructions
                 : DefaultShowScreenshotOverlayInstructions;
+            var minimizeToTrayOnClose = values.TryGetValue(MinimizeToTrayOnCloseKey, out var minimizeToTrayValue) &&
+                                        minimizeToTrayValue is bool minimizeToTray
+                ? minimizeToTray
+                : DefaultMinimizeToTrayOnClose;
 
             HotkeySettings? hotkey = null;
             if (!isHotkeyCleared &&
@@ -100,7 +107,8 @@ namespace helvety.screenshots
                 isHotkeyCleared,
                 isSaveFolderCleared,
                 screenshotBorderIntensity,
-                showScreenshotOverlayInstructions);
+                showScreenshotOverlayInstructions,
+                minimizeToTrayOnClose);
         }
 
         internal static void SaveHotkey(uint modifiers, IReadOnlyList<uint> sequence, string display)
@@ -178,6 +186,14 @@ namespace helvety.screenshots
             var values = ApplicationData.Current.LocalSettings.Values;
             EnsureSettingsVersion(values);
             values[ShowScreenshotOverlayInstructionsKey] = showInstructions;
+            SettingsChanged?.Invoke();
+        }
+
+        internal static void SaveMinimizeToTrayOnClose(bool minimizeToTrayOnClose)
+        {
+            var values = ApplicationData.Current.LocalSettings.Values;
+            EnsureSettingsVersion(values);
+            values[MinimizeToTrayOnCloseKey] = minimizeToTrayOnClose;
             SettingsChanged?.Invoke();
         }
 
@@ -407,6 +423,7 @@ namespace helvety.screenshots
 
             values[ScreenshotBorderIntensityKey] = (int)DefaultScreenshotBorderIntensity;
             values[ShowScreenshotOverlayInstructionsKey] = DefaultShowScreenshotOverlayInstructions;
+            values[MinimizeToTrayOnCloseKey] = DefaultMinimizeToTrayOnClose;
         }
 
         private static bool IsValidHotkey(HotkeySettings hotkey)
@@ -508,7 +525,8 @@ namespace helvety.screenshots
         bool IsHotkeyCleared,
         bool IsSaveFolderCleared,
         ScreenshotBorderIntensity ScreenshotBorderIntensity,
-        bool ShowScreenshotOverlayInstructions);
+        bool ShowScreenshotOverlayInstructions,
+        bool MinimizeToTrayOnClose);
 
     internal sealed record HotkeySettings(uint Modifiers, IReadOnlyList<uint> Sequence, string Display);
 

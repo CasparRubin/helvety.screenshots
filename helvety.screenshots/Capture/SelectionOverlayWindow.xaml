@@ -47,7 +47,7 @@
                 Visibility="Collapsed" />
             <Rectangle
                 x:Name="SnapBorderRectangle"
-                Stroke="Red"
+                Stroke="#FFD81B60"
                 StrokeThickness="3"
                 Visibility="Collapsed" />
             <Rectangle
@@ -69,8 +69,8 @@
                 Visibility="Collapsed" />
             <Rectangle
                 x:Name="DragRectangle"
-                Fill="#22FF0000"
-                Stroke="Red"
+                Fill="#33D81B60"
+                Stroke="#FFD81B60"
                 StrokeThickness="2"
                 Visibility="Collapsed" />
             <Border

@@ -217,6 +217,22 @@
                 </StackPanel>
             </Border>
 
+            <!-- App Behavior -->
+            <Border Style="{StaticResource SettingsCardBorderStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock Style="{StaticResource SettingsSectionTitleTextStyle}" Text="App Behavior" />
+                    <TextBlock
+                        Style="{StaticResource SettingsSectionDescriptionTextStyle}"
+                        Text="Choose whether closing the window keeps Helvety running in the notification area so global hotkeys continue working."
+                        />
+                    <CheckBox
+                        x:Name="MinimizeToTrayOnCloseCheckBox"
+                        Checked="MinimizeToTrayOnCloseCheckBox_Changed"
+                        Content="Keep app running in notification area when window is closed"
+                        Unchecked="MinimizeToTrayOnCloseCheckBox_Changed" />
+                </StackPanel>
+            </Border>
+
             <!-- Danger Zone -->
             <Border Style="{StaticResource SettingsCardBorderStyle}">
                 <StackPanel Spacing="12">
