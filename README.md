@@ -14,6 +14,9 @@ Expect rapid changes, incomplete features, and occasional breaking behavior whil
 - Window snapping with visual highlight
 - Free-rectangle selection
 - Clipboard and save-folder capture actions
+- Screenshots page with live folder refresh after new captures
+- Thumbnail previews for common image formats (PNG, JPG/JPEG, BMP, GIF, TIFF; WebP when codec is installed)
+- File metadata shown as European date/time format (`dd.MM.yyyy HH:mm`) plus relative age (`... ago`)
 - Iterative UX polish (overlay guidance, animation, interaction tuning)
 - Border FX personalization (intensity profile, rotating palettes, adaptive chase speed)
 - Settings-controlled overlay guidance visibility

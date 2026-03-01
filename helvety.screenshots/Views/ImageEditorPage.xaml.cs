@@ -74,11 +74,13 @@ namespace helvety.screenshots.Views
         private InMemoryRandomAccessStream? _clipboardImageStream;
         private bool _isCropSelected;
         private bool _isUpdatingSelectedTextUi;
+        private bool _isSyncingToolSettings;
         private bool _isResizingSelection;
         private ResizeHandle _activeResizeHandle;
         private EditorRect _resizeStartBounds;
         private Guid? _resizeLayerId;
         private bool _resizeTargetIsCrop;
+        private EditorToolType _settingsTool = EditorToolType.Move;
 
         public ImageEditorPage(string filePath)
         {
@@ -146,7 +148,6 @@ namespace helvety.screenshots.Views
                 EditorSurfaceGrid.Height = _imageHeight;
                 OverlayCanvas.Width = _imageWidth;
                 OverlayCanvas.Height = _imageHeight;
-                CropSelectionText.Text = "No crop selected.";
                 UpdateCropActionVisibility();
                 SetActiveTool(EditorToolType.Move);
                 UpdateSelectedTextEditorVisibility();
@@ -263,16 +264,59 @@ namespace helvety.screenshots.Views
         private void SetActiveTool(EditorToolType tool)
         {
             _activeTool = tool;
-            ActiveToolText.Text = tool.ToString();
-            MoveToolSettingsPanel.Visibility = tool == EditorToolType.Move ? Visibility.Visible : Visibility.Collapsed;
-            TextToolSettingsPanel.Visibility = tool == EditorToolType.Text ? Visibility.Visible : Visibility.Collapsed;
-            BorderToolSettingsPanel.Visibility = tool == EditorToolType.Border ? Visibility.Visible : Visibility.Collapsed;
-            BlurToolSettingsPanel.Visibility = tool == EditorToolType.Blur ? Visibility.Visible : Visibility.Collapsed;
-            ArrowToolSettingsPanel.Visibility = tool == EditorToolType.Arrow ? Visibility.Visible : Visibility.Collapsed;
-            CropToolSettingsPanel.Visibility = tool == EditorToolType.Crop ? Visibility.Visible : Visibility.Collapsed;
-
+            UpdateDisplayedToolContext();
             UpdateToolButtonVisuals();
             UpdateSelectedTextEditorVisibility();
+        }
+
+        private void UpdateDisplayedToolContext()
+        {
+            _settingsTool = ResolveSettingsTool();
+            MoveToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Move ? Visibility.Visible : Visibility.Collapsed;
+            TextToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Text ? Visibility.Visible : Visibility.Collapsed;
+            BorderToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Border ? Visibility.Visible : Visibility.Collapsed;
+            BlurToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Blur ? Visibility.Visible : Visibility.Collapsed;
+            ArrowToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Arrow ? Visibility.Visible : Visibility.Collapsed;
+            CropToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Crop ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        private EditorToolType ResolveSettingsTool()
+        {
+            if (_activeTool != EditorToolType.Move)
+            {
+                return _activeTool;
+            }
+
+            if (_isCropSelected && _pendingCropRect.HasValue && !_pendingCropRect.Value.IsEmpty)
+            {
+                return EditorToolType.Crop;
+            }
+
+            if (!TryGetSelectedLayer(out var selectedLayer) || selectedLayer is null)
+            {
+                return EditorToolType.Move;
+            }
+
+            return selectedLayer.LayerType switch
+            {
+                EditorLayerType.Text => EditorToolType.Text,
+                EditorLayerType.Border => EditorToolType.Border,
+                EditorLayerType.Blur => EditorToolType.Blur,
+                EditorLayerType.Arrow => EditorToolType.Arrow,
+                _ => EditorToolType.Move
+            };
+        }
+
+        private bool TryGetSelectedLayer(out EditorLayer? layer)
+        {
+            layer = null;
+            if (_document is null || !_selectedLayerId.HasValue)
+            {
+                return false;
+            }
+
+            layer = _document.Layers.FirstOrDefault(item => item.Id == _selectedLayerId.Value);
+            return layer is not null;
         }
 
         private void UpdateToolButtonVisuals()
@@ -283,12 +327,13 @@ namespace helvety.screenshots.Views
                 ? normalThemeBrush
                 : new SolidColorBrush(ColorHelper.FromArgb(255, 40, 40, 40));
 
-            MoveToolButton.Background = _activeTool == EditorToolType.Move ? selectedBrush : normalBrush;
-            TextToolButton.Background = _activeTool == EditorToolType.Text ? selectedBrush : normalBrush;
-            BorderToolButton.Background = _activeTool == EditorToolType.Border ? selectedBrush : normalBrush;
-            BlurToolButton.Background = _activeTool == EditorToolType.Blur ? selectedBrush : normalBrush;
-            ArrowToolButton.Background = _activeTool == EditorToolType.Arrow ? selectedBrush : normalBrush;
-            CropToolButton.Background = _activeTool == EditorToolType.Crop ? selectedBrush : normalBrush;
+            var highlightedTool = _activeTool == EditorToolType.Move ? _settingsTool : _activeTool;
+            MoveToolButton.Background = highlightedTool == EditorToolType.Move ? selectedBrush : normalBrush;
+            TextToolButton.Background = highlightedTool == EditorToolType.Text ? selectedBrush : normalBrush;
+            BorderToolButton.Background = highlightedTool == EditorToolType.Border ? selectedBrush : normalBrush;
+            BlurToolButton.Background = highlightedTool == EditorToolType.Blur ? selectedBrush : normalBrush;
+            ArrowToolButton.Background = highlightedTool == EditorToolType.Arrow ? selectedBrush : normalBrush;
+            CropToolButton.Background = highlightedTool == EditorToolType.Crop ? selectedBrush : normalBrush;
         }
 
         private void OverlayCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)
@@ -566,7 +611,9 @@ namespace helvety.screenshots.Views
             _selectedLayerId = layer.Id;
             _isCropSelected = false;
             LayersListView.SelectedItem = layer;
-            SelectedLayerText.Text = layer.Name;
+            SyncToolSettingsFromSelectedLayer();
+            UpdateDisplayedToolContext();
+            UpdateToolButtonVisuals();
             UpdateSelectedTextEditorVisibility();
         }
 
@@ -574,8 +621,9 @@ namespace helvety.screenshots.Views
         {
             _pendingCropRect = null;
             _isCropSelected = false;
-            CropSelectionText.Text = "No crop selected.";
             UpdateCropActionVisibility();
+            UpdateDisplayedToolContext();
+            UpdateToolButtonVisuals();
             UpdateSelectedTextEditorVisibility();
         }
 
@@ -585,9 +633,9 @@ namespace helvety.screenshots.Views
             _selectedLayerId = null;
             _isCropSelected = true;
             LayersListView.SelectedItem = null;
-            SelectedLayerText.Text = "Crop selection";
-            CropSelectionText.Text = $"Crop selected: {region.Width}x{region.Height}";
             UpdateCropActionVisibility();
+            UpdateDisplayedToolContext();
+            UpdateToolButtonVisuals();
             UpdateSelectedTextEditorVisibility();
         }
 
@@ -610,7 +658,6 @@ namespace helvety.screenshots.Views
             if (_selectedLayerId == layer.Id)
             {
                 _selectedLayerId = null;
-                SelectedLayerText.Text = "No layer selected";
             }
 
             UpdateSelectedTextEditorVisibility();
@@ -657,7 +704,8 @@ namespace helvety.screenshots.Views
             {
                 _selectedLayerId = null;
                 _isCropSelected = false;
-                SelectedLayerText.Text = "No layer selected";
+                UpdateDisplayedToolContext();
+                UpdateToolButtonVisuals();
                 UpdateSelectedTextEditorVisibility();
                 await RecomposeAsync();
                 return;
@@ -665,7 +713,9 @@ namespace helvety.screenshots.Views
 
             _selectedLayerId = layer.Id;
             _isCropSelected = false;
-            SelectedLayerText.Text = layer.Name;
+            SyncToolSettingsFromSelectedLayer();
+            UpdateDisplayedToolContext();
+            UpdateToolButtonVisuals();
             UpdateSelectedTextEditorVisibility();
             await RecomposeAsync();
         }
@@ -1316,7 +1366,6 @@ namespace helvety.screenshots.Views
             {
                 _pendingCropRect = resized;
                 _isCropSelected = true;
-                CropSelectionText.Text = $"Crop selected: {resized.Width}x{resized.Height}";
                 UpdateCropActionVisibility();
                 return;
             }
@@ -1332,12 +1381,10 @@ namespace helvety.screenshots.Views
                 case BorderLayer borderLayer:
                     borderLayer.Region = resized;
                     borderLayer.Name = $"Border ({resized.Width}x{resized.Height})";
-                    SelectedLayerText.Text = borderLayer.Name;
                     break;
                 case BlurLayer blurLayer:
                     blurLayer.Region = resized;
                     blurLayer.Name = $"Blur ({resized.Width}x{resized.Height})";
-                    SelectedLayerText.Text = blurLayer.Name;
                     break;
             }
         }
@@ -1441,7 +1488,8 @@ namespace helvety.screenshots.Views
             {
                 _selectedLayerId = null;
                 LayersListView.SelectedItem = null;
-                SelectedLayerText.Text = "No layer selected";
+                UpdateDisplayedToolContext();
+                UpdateToolButtonVisuals();
                 UpdateSelectedTextEditorVisibility();
                 return false;
             }
@@ -1449,7 +1497,9 @@ namespace helvety.screenshots.Views
             _selectedLayerId = selected.Id;
             _isCropSelected = false;
             LayersListView.SelectedItem = selected;
-            SelectedLayerText.Text = selected.Name;
+            SyncToolSettingsFromSelectedLayer();
+            UpdateDisplayedToolContext();
+            UpdateToolButtonVisuals();
             UpdateSelectedTextEditorVisibility();
             return true;
         }
@@ -1459,6 +1509,8 @@ namespace helvety.screenshots.Views
             if (!_pendingCropRect.HasValue || _pendingCropRect.Value.IsEmpty)
             {
                 _isCropSelected = false;
+                UpdateDisplayedToolContext();
+                UpdateToolButtonVisuals();
                 return false;
             }
 
@@ -1470,6 +1522,8 @@ namespace helvety.screenshots.Views
             if (!isInsideCrop)
             {
                 _isCropSelected = false;
+                UpdateDisplayedToolContext();
+                UpdateToolButtonVisuals();
                 UpdateSelectedTextEditorVisibility();
                 return false;
             }
@@ -1477,7 +1531,8 @@ namespace helvety.screenshots.Views
             _selectedLayerId = null;
             _isCropSelected = true;
             LayersListView.SelectedItem = null;
-            SelectedLayerText.Text = "Crop selection";
+            UpdateDisplayedToolContext();
+            UpdateToolButtonVisuals();
             UpdateSelectedTextEditorVisibility();
             return true;
         }
@@ -1529,7 +1584,6 @@ namespace helvety.screenshots.Views
             }
 
             textLayer.UpdateText(MoveSelectedTextTextBox.Text ?? string.Empty);
-            SelectedLayerText.Text = textLayer.Name;
             _ = RecomposeAsync();
         }
 
@@ -1615,17 +1669,117 @@ namespace helvety.screenshots.Views
 
         private void ToolSettingSelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_isSyncingToolSettings)
+            {
+                return;
+            }
+
             ApplySettingsToSelectedLayer();
+        }
+
+        private async void PickTextColorButton_Click(object sender, RoutedEventArgs e)
+        {
+            await PickColorForComboBoxAsync(TextColorComboBox, DefaultTextColor, "Pick text color");
+        }
+
+        private async void PickTextBorderColorButton_Click(object sender, RoutedEventArgs e)
+        {
+            await PickColorForComboBoxAsync(TextBorderColorComboBox, "#FF000000", "Pick text border color");
+        }
+
+        private async void PickBorderColorButton_Click(object sender, RoutedEventArgs e)
+        {
+            await PickColorForComboBoxAsync(BorderColorComboBox, "#FFFFA500", "Pick border color");
+        }
+
+        private async void PickArrowColorButton_Click(object sender, RoutedEventArgs e)
+        {
+            await PickColorForComboBoxAsync(ArrowColorComboBox, "#FFFFA500", "Pick arrow color");
         }
 
         private void ToolSettingValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
         {
+            if (_isSyncingToolSettings)
+            {
+                return;
+            }
+
             ApplySettingsToSelectedLayer();
         }
 
         private void ToolSettingToggled(object sender, RoutedEventArgs e)
         {
+            if (_isSyncingToolSettings)
+            {
+                return;
+            }
+
             ApplySettingsToSelectedLayer();
+        }
+
+        private void SyncToolSettingsFromSelectedLayer()
+        {
+            if (!TryGetSelectedLayer(out var layer) || layer is null)
+            {
+                return;
+            }
+
+            _isSyncingToolSettings = true;
+            try
+            {
+                switch (layer)
+                {
+                    case TextLayer textLayer:
+                        SetComboBoxSelectedColor(TextColorComboBox, textLayer.ColorHex);
+                        SetComboBoxSelectedColor(TextBorderColorComboBox, textLayer.BorderColorHex);
+                        TextSizeNumberBox.Value = textLayer.FontSize;
+                        TextBorderToggle.IsOn = textLayer.HasBorder;
+                        TextBorderThicknessNumberBox.Value = textLayer.BorderThickness;
+                        TextShadowToggle.IsOn = textLayer.HasShadow;
+                        TextShadowOffsetNumberBox.Value = textLayer.ShadowOffset;
+                        SelectComboItemByContent(TextFontComboBox, GetFontName(textLayer.FontFamily));
+                        break;
+                    case BorderLayer borderLayer:
+                        BorderThicknessNumberBox.Value = borderLayer.Thickness;
+                        BorderCornerRadiusNumberBox.Value = borderLayer.CornerRadius;
+                        SetComboBoxSelectedColor(BorderColorComboBox, borderLayer.ColorHex);
+                        break;
+                    case BlurLayer blurLayer:
+                        BlurRadiusNumberBox.Value = blurLayer.Radius;
+                        break;
+                    case ArrowLayer arrowLayer:
+                        ArrowThicknessNumberBox.Value = arrowLayer.Thickness;
+                        SetComboBoxSelectedColor(ArrowColorComboBox, arrowLayer.ColorHex);
+                        SelectComboItemByTag(ArrowHeadComboBox, arrowLayer.HeadStyle.ToString());
+                        break;
+                }
+            }
+            finally
+            {
+                _isSyncingToolSettings = false;
+            }
+        }
+
+        private static void SelectComboItemByContent(ComboBox comboBox, string content)
+        {
+            var match = comboBox.Items
+                .OfType<ComboBoxItem>()
+                .FirstOrDefault(item => string.Equals(item.Content?.ToString(), content, StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                comboBox.SelectedItem = match;
+            }
+        }
+
+        private static void SelectComboItemByTag(ComboBox comboBox, string tag)
+        {
+            var match = comboBox.Items
+                .OfType<ComboBoxItem>()
+                .FirstOrDefault(item => string.Equals(item.Tag?.ToString(), tag, StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                comboBox.SelectedItem = match;
+            }
         }
 
         private void ApplySettingsToSelectedLayer()
@@ -1643,6 +1797,8 @@ namespace helvety.screenshots.Views
 
             if (layer is TextLayer textLayer)
             {
+                textLayer.FontSize = Clamp((int)Math.Round(TextSizeNumberBox.Value), 8, 180);
+                textLayer.ColorHex = GetSelectedColorHex(TextColorComboBox, DefaultTextColor);
                 textLayer.HasBorder = TextBorderToggle.IsOn;
                 textLayer.BorderColorHex = GetSelectedColorHex(TextBorderColorComboBox, "#FF000000");
                 textLayer.BorderThickness = Clamp((int)Math.Round(TextBorderThicknessNumberBox.Value), 1, 6);
@@ -1652,7 +1808,13 @@ namespace helvety.screenshots.Views
             }
             else if (layer is BorderLayer borderLayer)
             {
+                borderLayer.Thickness = Clamp((int)Math.Round(BorderThicknessNumberBox.Value), 1, 24);
                 borderLayer.CornerRadius = Clamp((int)Math.Round(BorderCornerRadiusNumberBox.Value), 0, 50);
+                borderLayer.ColorHex = GetSelectedColorHex(BorderColorComboBox, "#FFFFA500");
+            }
+            else if (layer is BlurLayer blurLayer)
+            {
+                blurLayer.Radius = Clamp((int)Math.Round(BlurRadiusNumberBox.Value), 1, 25);
             }
             else if (layer is ArrowLayer arrowLayer)
             {
@@ -1674,6 +1836,71 @@ namespace helvety.screenshots.Views
             }
 
             return ArrowHeadStyle.Triangle;
+        }
+
+        private async Task PickColorForComboBoxAsync(ComboBox comboBox, string fallbackHex, string title)
+        {
+            var colorPicker = new ColorPicker
+            {
+                IsAlphaEnabled = true,
+                IsColorChannelTextInputVisible = true,
+                IsColorSliderVisible = true,
+                IsHexInputVisible = true,
+                Color = ParseColor(GetSelectedColorHex(comboBox, fallbackHex)),
+                MinWidth = 320
+            };
+
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                Content = colorPicker,
+                PrimaryButtonText = "Apply",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = XamlRoot
+            };
+
+            var result = await dialog.ShowAsync();
+            if (result != ContentDialogResult.Primary)
+            {
+                return;
+            }
+
+            var hex = ColorToHex(colorPicker.Color);
+            SetComboBoxSelectedColor(comboBox, hex);
+            ApplySettingsToSelectedLayer();
+        }
+
+        private static void SetComboBoxSelectedColor(ComboBox comboBox, string hex)
+        {
+            var match = comboBox.Items
+                .OfType<ComboBoxItem>()
+                .FirstOrDefault(item => item.Tag is string itemHex && string.Equals(itemHex, hex, StringComparison.OrdinalIgnoreCase));
+            if (match is not null)
+            {
+                comboBox.SelectedItem = match;
+                return;
+            }
+
+            var custom = comboBox.Items
+                .OfType<ComboBoxItem>()
+                .FirstOrDefault(item => string.Equals(item.Content?.ToString(), "Custom", StringComparison.OrdinalIgnoreCase));
+            if (custom is null)
+            {
+                custom = new ComboBoxItem { Content = "Custom", Tag = hex };
+                comboBox.Items.Add(custom);
+            }
+            else
+            {
+                custom.Tag = hex;
+            }
+
+            comboBox.SelectedItem = custom;
+        }
+
+        private static string ColorToHex(Color color)
+        {
+            return $"#{color.A:X2}{color.R:X2}{color.G:X2}{color.B:X2}";
         }
 
         private static string GetSelectedColorHex(ComboBox comboBox, string fallback)

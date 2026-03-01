@@ -36,24 +36,6 @@
                         FontSize="18"
                         FontWeight="SemiBold"
                         Text="Image Editor" />
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="Active Tool:" VerticalAlignment="Center" />
-                        <TextBlock
-                            x:Name="ActiveToolText"
-                            FontWeight="SemiBold"
-                            VerticalAlignment="Center"
-                            Text="Move" />
-                        <TextBlock Text="|" />
-                        <TextBlock
-                            x:Name="SelectedLayerText"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            VerticalAlignment="Center"
-                            Text="No layer selected" />
-                        <TextBlock
-                            x:Name="CropSelectionText"
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                            VerticalAlignment="Center" />
-                    </StackPanel>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
@@ -118,13 +100,17 @@
                                 <ComboBoxItem Content="Orange" Tag="#FFFFA500" />
                                 <ComboBoxItem Content="Blue" Tag="#FF4285F4" />
                                 <ComboBoxItem Content="Red" Tag="#FFE53935" />
+                                <ComboBoxItem Content="Custom" Tag="#FFFFFFFF" />
                             </ComboBox>
+                            <Button Content="Pick" Height="34" Click="PickTextColorButton_Click" />
                             <ToggleSwitch x:Name="TextBorderToggle" Header="Border" VerticalAlignment="Center" Toggled="ToolSettingToggled" />
                             <ComboBox x:Name="TextBorderColorComboBox" Width="108" Height="34" VerticalAlignment="Center" SelectionChanged="ToolSettingSelectionChanged">
                                 <ComboBoxItem Content="Black" Tag="#FF000000" IsSelected="True" />
                                 <ComboBoxItem Content="White" Tag="#FFFFFFFF" />
                                 <ComboBoxItem Content="Blue" Tag="#FF4285F4" />
+                                <ComboBoxItem Content="Custom" Tag="#FF000000" />
                             </ComboBox>
+                            <Button Content="Pick" Height="34" Click="PickTextBorderColorButton_Click" />
                             <NumberBox x:Name="TextBorderThicknessNumberBox" Width="72" Height="34" VerticalAlignment="Center" Minimum="1" Maximum="6" Value="1" ValueChanged="ToolSettingValueChanged" />
                             <ToggleSwitch x:Name="TextShadowToggle" Header="Shadow" VerticalAlignment="Center" Toggled="ToolSettingToggled" />
                             <NumberBox x:Name="TextShadowOffsetNumberBox" Width="72" Height="34" VerticalAlignment="Center" Minimum="1" Maximum="12" Value="2" ValueChanged="ToolSettingValueChanged" />
@@ -145,7 +131,9 @@
                                 <ComboBoxItem Content="Blue" Tag="#FF4285F4" />
                                 <ComboBoxItem Content="Red" Tag="#FFE53935" />
                                 <ComboBoxItem Content="White" Tag="#FFFFFFFF" />
+                                <ComboBoxItem Content="Custom" Tag="#FFFFA500" />
                             </ComboBox>
+                            <Button Content="Pick" Height="34" Click="PickBorderColorButton_Click" />
                         </StackPanel>
 
                         <StackPanel
@@ -171,7 +159,9 @@
                                 <ComboBoxItem Content="Red" Tag="#FFE53935" />
                                 <ComboBoxItem Content="White" Tag="#FFFFFFFF" />
                                 <ComboBoxItem Content="Black" Tag="#FF000000" />
+                                <ComboBoxItem Content="Custom" Tag="#FFFFA500" />
                             </ComboBox>
+                            <Button Content="Pick" Height="34" Click="PickArrowColorButton_Click" />
                             <TextBlock Text="Head" VerticalAlignment="Center" />
                             <ComboBox x:Name="ArrowHeadComboBox" Width="120" Height="34" VerticalAlignment="Center" SelectionChanged="ToolSettingSelectionChanged">
                                 <ComboBoxItem Content="Triangle" Tag="Triangle" IsSelected="True" />
@@ -245,7 +235,7 @@
                             Tag="Border"
                             Click="ToolButton_Click">
                             <StackPanel Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <FontIcon Glyph="&#xEB56;" />
+                                <TextBlock FontSize="18" Text="□" />
                                 <TextBlock FontSize="11" Text="Border" />
                             </StackPanel>
                         </Button>
@@ -257,7 +247,7 @@
                             Tag="Blur"
                             Click="ToolButton_Click">
                             <StackPanel Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <FontIcon Glyph="&#xE8EC;" />
+                                <TextBlock FontSize="16" Text="💧" />
                                 <TextBlock FontSize="11" Text="Blur" />
                             </StackPanel>
                         </Button>
@@ -281,16 +271,11 @@
                             Tag="Arrow"
                             Click="ToolButton_Click">
                             <StackPanel Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <FontIcon Glyph="&#xE7C3;" />
+                                <SymbolIcon Symbol="Forward" />
                                 <TextBlock FontSize="11" Text="Arrow" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
-                    <TextBlock
-                        Margin="0,12,0,0"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        Text="Pick a tool. After placing an edit, move mode auto-activates."
-                        TextWrapping="WrapWholeWords" />
                 </StackPanel>
             </Border>
 
@@ -359,22 +344,17 @@
                                             VerticalAlignment="Center">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="Auto" />
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <FontIcon
-                                                Grid.Column="0"
-                                                VerticalAlignment="Center"
-                                                Glyph="&#xE8D4;" />
                                             <ToggleButton
-                                                Grid.Column="1"
+                                                Grid.Column="0"
                                                 IsChecked="{x:Bind IsVisible, Mode=TwoWay}"
                                                 Checked="LayerVisibilityCheckBox_Changed"
                                                 Unchecked="LayerVisibilityCheckBox_Changed"
                                                 Tag="{x:Bind Id}">
                                                 <SymbolIcon Symbol="View" />
                                             </ToggleButton>
-                                            <StackPanel Grid.Column="2" Spacing="1">
+                                            <StackPanel Grid.Column="1" Spacing="1">
                                                 <TextBlock
                                                     FontSize="13"
                                                     FontWeight="SemiBold"

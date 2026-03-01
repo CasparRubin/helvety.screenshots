@@ -91,9 +91,9 @@ namespace helvety.screenshots.Editor
 
         internal double Y { get; set; }
 
-        internal double FontSize { get; }
+        internal double FontSize { get; set; }
 
-        internal string ColorHex { get; }
+        internal string ColorHex { get; set; }
 
         internal string FontFamily { get; set; } = "Segoe UI";
 
@@ -193,11 +193,11 @@ namespace helvety.screenshots.Editor
 
         internal EditorRect Region { get; set; }
 
-        internal int Thickness { get; }
+        internal int Thickness { get; set; }
 
         internal int CornerRadius { get; set; }
 
-        internal string ColorHex { get; }
+        internal string ColorHex { get; set; }
 
         internal override EditorRect GetBounds()
         {
@@ -234,7 +234,7 @@ namespace helvety.screenshots.Editor
 
         internal EditorRect Region { get; set; }
 
-        internal int Radius { get; }
+        internal int Radius { get; set; }
 
         internal override EditorRect GetBounds()
         {
