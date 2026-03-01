@@ -56,7 +56,8 @@ namespace helvety.screenshots.Capture
                     return;
                 }
 
-                var overlay = await EnqueueAsync(() => new SelectionOverlayWindow(freezeFrame, _windowSnapHitTester));
+                var showInstructions = SettingsService.Load().ShowScreenshotOverlayInstructions;
+                var overlay = await EnqueueAsync(() => new SelectionOverlayWindow(freezeFrame, _windowSnapHitTester, showInstructions));
 
                 while (true)
                 {
@@ -81,6 +82,7 @@ namespace helvety.screenshots.Capture
                         await EnqueueAsync(() =>
                         {
                             overlay.UpdateInstructionStatus("Capture canceled.");
+                            overlay.ShowSessionToast("Capture canceled", "No screenshot was saved.");
                             return true;
                         });
                         publishStatus("Capture canceled.");
@@ -106,7 +108,8 @@ namespace helvety.screenshots.Capture
                         var filename = Path.GetFileName(saveResult.OutputPath);
                         await EnqueueAsync(() =>
                         {
-                            overlay.UpdateInstructionStatus($"Saved {filename} to {saveResult.OutputPath}");
+                            overlay.UpdateInstructionStatus("Ready for next capture...");
+                            overlay.ShowSessionToast($"Saved {filename}", saveResult.OutputPath);
                             return true;
                         });
                         publishStatus($"Saved screenshot (staying in capture mode): {saveResult.OutputPath}");
@@ -118,7 +121,8 @@ namespace helvety.screenshots.Capture
                         var filename = Path.GetFileName(saveResult.OutputPath);
                         await EnqueueAsync(() =>
                         {
-                            overlay.UpdateInstructionStatus($"Saved {filename} and copied to clipboard");
+                            overlay.UpdateInstructionStatus("Saved and copied to clipboard.");
+                            overlay.ShowSessionToast($"Saved {filename}", saveResult.OutputPath);
                             return true;
                         });
                         await CopyBitmapToClipboardAsync(saveResult.PngBytes);

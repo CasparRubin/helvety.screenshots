@@ -51,6 +51,8 @@ namespace helvety.screenshots.Views
         private int? _activeCaptureStepIndex;
         private readonly uint?[] _editorSequence = new uint?[MaxSequenceLength];
         private uint _editorModifiers;
+        private bool _isUpdatingBorderIntensitySelection;
+        private bool _isUpdatingOverlayInstructionSelection;
 
         public SettingsPage()
         {
@@ -106,6 +108,9 @@ namespace helvety.screenshots.Views
 
         private void InitializeSettings()
         {
+            InitializeBorderIntensitySelection();
+            InitializeOverlayInstructionSelection();
+
             if (SettingsService.TryGetEffectiveSaveFolderPath(out var effectiveSaveFolderPath))
             {
                 _saveFolderPath = effectiveSaveFolderPath;
@@ -123,6 +128,39 @@ namespace helvety.screenshots.Views
                 : null;
 
             RefreshSaveFolderState();
+        }
+
+        private void InitializeBorderIntensitySelection()
+        {
+            var settings = SettingsService.Load();
+            _isUpdatingBorderIntensitySelection = true;
+            try
+            {
+                BorderIntensityComboBox.SelectedIndex = settings.ScreenshotBorderIntensity switch
+                {
+                    ScreenshotBorderIntensity.Subtle => 0,
+                    ScreenshotBorderIntensity.Bold => 2,
+                    _ => 1
+                };
+            }
+            finally
+            {
+                _isUpdatingBorderIntensitySelection = false;
+            }
+        }
+
+        private void InitializeOverlayInstructionSelection()
+        {
+            var settings = SettingsService.Load();
+            _isUpdatingOverlayInstructionSelection = true;
+            try
+            {
+                ShowOverlayInstructionsCheckBox.IsChecked = settings.ShowScreenshotOverlayInstructions;
+            }
+            finally
+            {
+                _isUpdatingOverlayInstructionSelection = false;
+            }
         }
 
         private void RefreshSaveFolderState()
@@ -495,6 +533,34 @@ namespace helvety.screenshots.Views
             _editorModifiers = BuildModifiersFromEditor();
             UpdateCapturePreview();
             UpdateFeatureAvailability();
+        }
+
+        private void BorderIntensityComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isUpdatingBorderIntensitySelection)
+            {
+                return;
+            }
+
+            var selectedIntensity = BorderIntensityComboBox.SelectedIndex switch
+            {
+                0 => ScreenshotBorderIntensity.Subtle,
+                2 => ScreenshotBorderIntensity.Bold,
+                _ => ScreenshotBorderIntensity.Balanced
+            };
+
+            SettingsService.SaveScreenshotBorderIntensity(selectedIntensity);
+        }
+
+        private void ShowOverlayInstructionsCheckBox_Changed(object sender, RoutedEventArgs e)
+        {
+            if (_isUpdatingOverlayInstructionSelection)
+            {
+                return;
+            }
+
+            var shouldShowOverlayInstructions = ShowOverlayInstructionsCheckBox.IsChecked != false;
+            SettingsService.SaveShowScreenshotOverlayInstructions(shouldShowOverlayInstructions);
         }
 
         private void ListenStep1Button_Click(object sender, RoutedEventArgs e) => StartStepCapture(0);

@@ -15,6 +15,8 @@ Expect rapid changes, incomplete features, and occasional breaking behavior whil
 - Free-rectangle selection
 - Clipboard and save-folder capture actions
 - Iterative UX polish (overlay guidance, animation, interaction tuning)
+- Border FX personalization (intensity profile, rotating palettes, adaptive chase speed)
+- Settings-controlled overlay guidance visibility
 
 ## Tech Stack
 
@@ -27,6 +29,8 @@ Expect rapid changes, incomplete features, and occasional breaking behavior whil
 1. Open the solution in Visual Studio 2022 (with WinUI/.NET desktop workloads).
 2. Build and run the `helvety.screenshots` project.
 3. Configure save folder and hotkey in the app settings.
+4. (Optional) Tune screenshot border intensity in `Settings > Screenshot Border Effects`.
+5. (Optional) Toggle screenshot overlay guidance visibility in settings.
 
 ## Notes
 

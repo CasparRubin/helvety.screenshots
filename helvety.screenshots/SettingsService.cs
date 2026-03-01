@@ -28,6 +28,8 @@ namespace helvety.screenshots
         private const string HotkeyDisplayKey = "HotkeyDisplay";
         private const string HotkeyClearedKey = "HotkeyCleared";
         private const string SaveFolderClearedKey = "SaveFolderCleared";
+        private const string ScreenshotBorderIntensityKey = "ScreenshotBorderIntensity";
+        private const string ShowScreenshotOverlayInstructionsKey = "ShowScreenshotOverlayInstructions";
 
         internal static AppSettings Load()
         {
@@ -43,6 +45,15 @@ namespace helvety.screenshots
             var isSaveFolderCleared = values.TryGetValue(SaveFolderClearedKey, out var saveFolderClearedValue) &&
                                       saveFolderClearedValue is bool saveFolderCleared &&
                                       saveFolderCleared;
+            var screenshotBorderIntensity = values.TryGetValue(ScreenshotBorderIntensityKey, out var borderIntensityValue) &&
+                                            borderIntensityValue is int borderIntensityInt &&
+                                            Enum.IsDefined(typeof(ScreenshotBorderIntensity), borderIntensityInt)
+                ? (ScreenshotBorderIntensity)borderIntensityInt
+                : ScreenshotBorderIntensity.Balanced;
+            var showScreenshotOverlayInstructions = values.TryGetValue(ShowScreenshotOverlayInstructionsKey, out var showOverlayValue) &&
+                                                    showOverlayValue is bool showOverlayInstructions
+                ? showOverlayInstructions
+                : true;
 
             HotkeySettings? hotkey = null;
             if (!isHotkeyCleared &&
@@ -68,7 +79,13 @@ namespace helvety.screenshots
                 }
             }
 
-            return new AppSettings(saveFolderPath, hotkey, isHotkeyCleared, isSaveFolderCleared);
+            return new AppSettings(
+                saveFolderPath,
+                hotkey,
+                isHotkeyCleared,
+                isSaveFolderCleared,
+                screenshotBorderIntensity,
+                showScreenshotOverlayInstructions);
         }
 
         internal static void SaveHotkey(uint modifiers, IReadOnlyList<uint> sequence, string display)
@@ -130,6 +147,22 @@ namespace helvety.screenshots
             values.Remove(SaveFolderPathKey);
             values[SaveFolderClearedKey] = true;
             SaveFolderPathChanged?.Invoke();
+            SettingsChanged?.Invoke();
+        }
+
+        internal static void SaveScreenshotBorderIntensity(ScreenshotBorderIntensity intensity)
+        {
+            var values = ApplicationData.Current.LocalSettings.Values;
+            EnsureSettingsVersion(values);
+            values[ScreenshotBorderIntensityKey] = (int)intensity;
+            SettingsChanged?.Invoke();
+        }
+
+        internal static void SaveShowScreenshotOverlayInstructions(bool showInstructions)
+        {
+            var values = ApplicationData.Current.LocalSettings.Values;
+            EnsureSettingsVersion(values);
+            values[ShowScreenshotOverlayInstructionsKey] = showInstructions;
             SettingsChanged?.Invoke();
         }
 
@@ -328,9 +361,22 @@ namespace helvety.screenshots
         }
     }
 
-    internal sealed record AppSettings(string? SaveFolderPath, HotkeySettings? Hotkey, bool IsHotkeyCleared, bool IsSaveFolderCleared);
+    internal sealed record AppSettings(
+        string? SaveFolderPath,
+        HotkeySettings? Hotkey,
+        bool IsHotkeyCleared,
+        bool IsSaveFolderCleared,
+        ScreenshotBorderIntensity ScreenshotBorderIntensity,
+        bool ShowScreenshotOverlayInstructions);
 
     internal sealed record HotkeySettings(uint Modifiers, IReadOnlyList<uint> Sequence, string Display);
+
+    internal enum ScreenshotBorderIntensity
+    {
+        Subtle = 0,
+        Balanced = 1,
+        Bold = 2
+    }
 
     internal sealed record GlobalSetupIssue(
         InfoBarSeverity Severity,

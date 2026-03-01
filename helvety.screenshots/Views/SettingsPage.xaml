@@ -67,6 +67,41 @@
                 BorderThickness="1"
                 CornerRadius="12">
                 <StackPanel Spacing="12">
+                    <TextBlock FontSize="20" FontWeight="SemiBold" Text="Screenshot Border Effects" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Control the visual intensity of screenshot border animations."
+                        TextWrapping="WrapWholeWords" />
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock VerticalAlignment="Center" Text="Intensity" />
+                        <ComboBox
+                            x:Name="BorderIntensityComboBox"
+                            MinWidth="170"
+                            SelectionChanged="BorderIntensityComboBox_SelectionChanged">
+                            <ComboBoxItem Content="Subtle" Tag="Subtle" />
+                            <ComboBoxItem Content="Balanced" Tag="Balanced" />
+                            <ComboBoxItem Content="Bold" Tag="Bold" />
+                        </ComboBox>
+                    </StackPanel>
+                    <CheckBox
+                        x:Name="ShowOverlayInstructionsCheckBox"
+                        Checked="ShowOverlayInstructionsCheckBox_Changed"
+                        Content="Show screenshot mode overlay instructions"
+                        Unchecked="ShowOverlayInstructionsCheckBox_Changed" />
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        Text="Changes apply to the next screenshot session. Palette rotation and chase-speed adaptation are automatic."
+                        TextWrapping="WrapWholeWords" />
+                </StackPanel>
+            </Border>
+
+            <Border
+                Padding="16"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="12">
+                <StackPanel Spacing="12">
                     <TextBlock FontSize="20" FontWeight="SemiBold" Text="Key-Bindings" />
                     <TextBlock
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"

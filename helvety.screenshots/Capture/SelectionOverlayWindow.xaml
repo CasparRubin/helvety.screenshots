@@ -6,6 +6,7 @@
     Title="Capture Selection">
     <Grid
         x:Name="RootGrid"
+        UseSystemFocusVisuals="False"
         Background="Transparent"
         KeyDown="RootGrid_KeyDown"
         PointerMoved="RootGrid_PointerMoved"
@@ -30,24 +31,41 @@
                 StrokeThickness="1" />
             <Rectangle
                 x:Name="DimTop"
-                Fill="#4D000000"
+                Fill="#B3000000"
                 Visibility="Collapsed" />
             <Rectangle
                 x:Name="DimLeft"
-                Fill="#4D000000"
+                Fill="#B3000000"
                 Visibility="Collapsed" />
             <Rectangle
                 x:Name="DimRight"
-                Fill="#4D000000"
+                Fill="#B3000000"
                 Visibility="Collapsed" />
             <Rectangle
                 x:Name="DimBottom"
-                Fill="#4D000000"
+                Fill="#B3000000"
                 Visibility="Collapsed" />
             <Rectangle
                 x:Name="SnapBorderRectangle"
                 Stroke="Red"
                 StrokeThickness="3"
+                Visibility="Collapsed" />
+            <Rectangle
+                x:Name="SnapBorderChaseRectangle"
+                Stroke="White"
+                StrokeDashArray="26,180"
+                StrokeThickness="2"
+                Visibility="Collapsed" />
+            <Rectangle
+                x:Name="SnapBorderCornerGlowRectangle"
+                Stroke="#66FFFFFF"
+                StrokeDashArray="18,68,18,220"
+                StrokeThickness="5"
+                Visibility="Collapsed" />
+            <Rectangle
+                x:Name="SnapBorderGlowRectangle"
+                Stroke="#44FFFFFF"
+                StrokeThickness="7"
                 Visibility="Collapsed" />
             <Rectangle
                 x:Name="DragRectangle"
@@ -59,18 +77,19 @@
                 x:Name="InstructionPanel"
                 MaxWidth="520"
                 Padding="16"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                Background="#FA202020"
+                BorderBrush="#66262626"
                 BorderThickness="1"
-                CornerRadius="16">
+                CornerRadius="0">
                 <StackPanel Spacing="12">
                     <StackPanel Spacing="2">
                         <TextBlock
                             FontSize="18"
                             FontWeight="SemiBold"
+                            Foreground="White"
                             Text="Screenshot Mode" />
                         <TextBlock
-                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            Foreground="#FFE6E6E6"
                             Text="Fast capture with snap and free selection."
                             TextWrapping="WrapWholeWords" />
                     </StackPanel>
@@ -90,17 +109,19 @@
                             Grid.Row="0"
                             Grid.Column="0"
                             Padding="8,3"
-                            Background="{ThemeResource AccentFillColorSecondaryBrush}"
+                            Background="#FF2A2A2A"
                             CornerRadius="6">
                             <TextBlock
                                 FontSize="12"
                                 FontWeight="SemiBold"
+                                Foreground="White"
                                 Text="LMB" />
                         </Border>
                         <TextBlock
                             Grid.Row="0"
                             Grid.Column="1"
                             VerticalAlignment="Center"
+                            Foreground="White"
                             TextWrapping="WrapWholeWords">
                             <Run FontWeight="SemiBold" Text="Left click" />
                             <Run Text=" saves, copies to clipboard, and exits mode." />
@@ -110,17 +131,19 @@
                             Grid.Row="1"
                             Grid.Column="0"
                             Padding="8,3"
-                            Background="{ThemeResource AccentFillColorSecondaryBrush}"
+                            Background="#FF2A2A2A"
                             CornerRadius="6">
                             <TextBlock
                                 FontSize="12"
                                 FontWeight="SemiBold"
+                                Foreground="White"
                                 Text="RMB" />
                         </Border>
                         <TextBlock
                             Grid.Row="1"
                             Grid.Column="1"
                             VerticalAlignment="Center"
+                            Foreground="White"
                             TextWrapping="WrapWholeWords">
                             <Run FontWeight="SemiBold" Text="Right click" />
                             <Run Text=" saves and keeps frozen mode active." />
@@ -130,17 +153,19 @@
                             Grid.Row="2"
                             Grid.Column="0"
                             Padding="8,3"
-                            Background="{ThemeResource AccentFillColorSecondaryBrush}"
+                            Background="#FF2A2A2A"
                             CornerRadius="6">
                             <TextBlock
                                 FontSize="12"
                                 FontWeight="SemiBold"
+                                Foreground="White"
                                 Text="ESC" />
                         </Border>
                         <TextBlock
                             Grid.Row="2"
                             Grid.Column="1"
                             VerticalAlignment="Center"
+                            Foreground="White"
                             TextWrapping="WrapWholeWords">
                             <Run FontWeight="SemiBold" Text="Esc" />
                             <Run Text=" cancels screenshot mode." />
@@ -150,16 +175,17 @@
                     <Border
                         x:Name="InstructionStatusCard"
                         Padding="10"
-                        Background="{ThemeResource ControlFillColorSecondaryBrush}"
-                        CornerRadius="10">
+                        Background="#E62A2A2A"
+                        CornerRadius="0">
                         <StackPanel Spacing="3">
                             <TextBlock
                                 FontSize="12"
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Foreground="#FFDCDCDC"
                                 Text="Latest status" />
                             <TextBlock
                                 x:Name="InstructionStatusText"
                                 FontWeight="SemiBold"
+                                Foreground="White"
                                 Text="Waiting for selection..."
                                 TextWrapping="WrapWholeWords" />
                         </StackPanel>
@@ -167,13 +193,36 @@
 
                     <Border
                         Padding="8,6"
-                        Background="{ThemeResource ControlFillColorTertiaryBrush}"
-                        CornerRadius="8">
+                        Background="#D92A2A2A"
+                        CornerRadius="0">
                         <TextBlock
-                            Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                            Foreground="#FFDCDCDC"
                             Text="Note: This panel is never included in saved screenshots."
                             TextWrapping="WrapWholeWords" />
                     </Border>
+                </StackPanel>
+            </Border>
+
+            <Border
+                x:Name="SessionToastCard"
+                MaxWidth="520"
+                Padding="10"
+                Background="#F0262626"
+                BorderBrush="#66262626"
+                BorderThickness="1"
+                CornerRadius="0"
+                Visibility="Collapsed">
+                <StackPanel Spacing="2">
+                    <TextBlock
+                        x:Name="SessionToastTitleText"
+                        FontWeight="SemiBold"
+                        Foreground="White"
+                        Text="Screenshot saved" />
+                    <TextBlock
+                        x:Name="SessionToastDetailText"
+                        Foreground="#FFDCDCDC"
+                        Text="Folder path"
+                        TextWrapping="WrapWholeWords" />
                 </StackPanel>
             </Border>
         </Canvas>

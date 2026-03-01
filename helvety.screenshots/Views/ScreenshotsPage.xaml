@@ -48,7 +48,7 @@
                             HorizontalAlignment="Center"
                             TextAlignment="Center"
                             TextWrapping="WrapWholeWords"
-                            Text="Press Shift+S to create your first screenshot." />
+                            Text="Configure save location and key-binding to start capturing." />
                     </StackPanel>
                 </Border>
             </Grid>
