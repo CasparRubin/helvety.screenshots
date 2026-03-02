@@ -18,11 +18,13 @@ Expect rapid changes, incomplete features, and occasional breaking behavior whil
 - Screenshots page with live folder refresh after new captures
 - Thumbnail previews for common image formats (PNG, JPG/JPEG, BMP, GIF, TIFF; WebP when codec is installed)
 - File metadata shown as European date/time format (`dd.MM.yyyy HH:mm`) plus relative age (`... ago`)
-- Built-in image editor tools (Move, Text, Border, Blur, Highlight, Arrow, Crop)
+- Built-in image editor tools (Move, Text, Border, Blur, Highlight, Arrow, Crop; Crop is last in the toolbar)
 - Layer list with drag-and-drop reordering (top item is rendered in front)
 - Arrow drawing with live preview while dragging
 - Quick text re-edit via selected-layer editor controls
 - Blur + Highlight invert modes (toggle whether effect targets the selection or the outside area)
+- Editor performance optimizations: coalesced recomposition, reduced overlay churn, and deferred heavy blur/highlight recompute during drag/resize
+- Optional `Performance Mode` toggle in Move settings to prioritize responsiveness during intensive layer editing
 - Iterative UX polish (overlay guidance, animation, interaction tuning)
 - Border FX personalization (intensity profile, rotating palettes, adaptive chase speed)
 - Settings-controlled overlay guidance visibility

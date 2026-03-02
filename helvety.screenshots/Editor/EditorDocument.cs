@@ -76,24 +76,63 @@ namespace helvety.screenshots.Editor
 
     internal sealed class TextLayer : EditorLayer
     {
+        private string _text;
+        private double _x;
+        private double _y;
+        private double _fontSize;
+        private int _wrapWidth;
+        private EditorRect? _cachedBounds;
+
         internal TextLayer(string text, double x, double y, double fontSize, string colorHex, int wrapWidth)
             : base($"Text: {TrimName(text)}", EditorLayerType.Text)
         {
-            Text = text;
-            X = x;
-            Y = y;
-            FontSize = fontSize;
+            _text = text ?? string.Empty;
+            _x = x;
+            _y = y;
+            _fontSize = fontSize;
             ColorHex = colorHex;
-            WrapWidth = Math.Max(1, wrapWidth);
+            _wrapWidth = Math.Max(1, wrapWidth);
         }
 
-        internal string Text { get; private set; }
+        internal string Text
+        {
+            get => _text;
+            private set
+            {
+                _text = value ?? string.Empty;
+                InvalidateBounds();
+            }
+        }
 
-        internal double X { get; set; }
+        internal double X
+        {
+            get => _x;
+            set
+            {
+                _x = value;
+                InvalidateBounds();
+            }
+        }
 
-        internal double Y { get; set; }
+        internal double Y
+        {
+            get => _y;
+            set
+            {
+                _y = value;
+                InvalidateBounds();
+            }
+        }
 
-        internal double FontSize { get; set; }
+        internal double FontSize
+        {
+            get => _fontSize;
+            set
+            {
+                _fontSize = value;
+                InvalidateBounds();
+            }
+        }
 
         internal string ColorHex { get; set; }
 
@@ -111,10 +150,15 @@ namespace helvety.screenshots.Editor
 
         internal string ShadowColorHex { get; set; } = "#66000000";
 
-        internal int WrapWidth { get; private set; }
+        internal int WrapWidth => _wrapWidth;
 
         internal override EditorRect GetBounds()
         {
+            if (_cachedBounds.HasValue)
+            {
+                return _cachedBounds.Value;
+            }
+
             var charWidth = Math.Max(1.0, FontSize * 0.62);
             var lineHeight = Math.Max(1.0, FontSize * 1.35);
             var safeWrapWidth = Math.Max(1, WrapWidth);
@@ -142,7 +186,8 @@ namespace helvety.screenshots.Editor
             var measuredWidth = (int)Math.Ceiling(maxLineCharCount * charWidth);
             var width = Math.Max(1, Math.Min(safeWrapWidth, measuredWidth));
             var height = Math.Max(1, (int)Math.Ceiling(visualLineCount * lineHeight));
-            return new EditorRect((int)Math.Round(X), (int)Math.Round(Y), width, height);
+            _cachedBounds = new EditorRect((int)Math.Round(X), (int)Math.Round(Y), width, height);
+            return _cachedBounds.Value;
         }
 
         internal override bool ContainsPoint(double x, double y)
@@ -173,7 +218,13 @@ namespace helvety.screenshots.Editor
 
         internal void UpdateWrapWidth(int width)
         {
-            WrapWidth = Math.Max(1, width);
+            _wrapWidth = Math.Max(1, width);
+            InvalidateBounds();
+        }
+
+        private void InvalidateBounds()
+        {
+            _cachedBounds = null;
         }
 
         private static string TrimName(string text)
@@ -249,6 +300,8 @@ namespace helvety.screenshots.Editor
 
         internal int Radius { get; set; }
 
+        internal int CornerRadius { get; set; }
+
         internal override EditorRect GetBounds()
         {
             return Region;
@@ -282,6 +335,8 @@ namespace helvety.screenshots.Editor
         }
 
         internal EditorRect Region { get; set; }
+
+        internal int CornerRadius { get; set; }
 
         internal override EditorRect GetBounds()
         {

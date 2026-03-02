@@ -10,6 +10,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Threading.Tasks;
+using Windows.ApplicationModel.DataTransfer;
 using WinRT.Interop;
 
 namespace helvety.screenshots
@@ -19,7 +20,7 @@ namespace helvety.screenshots
         private const string UseDefaultSaveFolderActionTag = "use-default-save-folder";
         private const string UseDefaultHotkeyActionTag = "use-default-hotkey";
         private const int MaxVisibleToasts = 6;
-        private static readonly TimeSpan ToastDuration = TimeSpan.FromSeconds(3.2);
+        private static readonly TimeSpan ToastDuration = TimeSpan.FromSeconds(5.2);
         private static readonly TimeSpan ToastFadeOutDuration = TimeSpan.FromMilliseconds(220);
         private readonly ObservableCollection<GlobalSetupIssue> _globalIssues = new();
         private bool _allowFullExit;
@@ -187,15 +188,34 @@ namespace helvety.screenshots
             };
             layoutGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             layoutGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            layoutGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var copyButton = new Button
+            {
+                Content = "Copy",
+                MinWidth = 64,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top
+            };
+            ToolTipService.SetToolTip(copyButton, "Copy toast text");
+            copyButton.Click += (_, _) =>
+            {
+                var package = new DataPackage();
+                package.SetText(message);
+                Clipboard.SetContent(package);
+                Clipboard.Flush();
+            };
 
             Grid.SetColumn(accentBar, 0);
             Grid.SetColumn(textStack, 1);
+            Grid.SetColumn(copyButton, 2);
             layoutGrid.Children.Add(accentBar);
             layoutGrid.Children.Add(textStack);
+            layoutGrid.Children.Add(copyButton);
 
             var toastCard = new Border
             {
-                Background = TryGetThemeBrush("CardBackgroundFillColorDefaultBrush", new SolidColorBrush(Windows.UI.Color.FromArgb(255, 33, 33, 33))),
+                Background = new SolidColorBrush(Windows.UI.Color.FromArgb(242, 20, 20, 20)),
                 BorderBrush = TryGetThemeBrush("CardStrokeColorDefaultBrush", new SolidColorBrush(Windows.UI.Color.FromArgb(255, 70, 70, 70))),
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(12),

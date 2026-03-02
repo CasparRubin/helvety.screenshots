@@ -26,20 +26,28 @@ namespace helvety.screenshots.Editor
                 return;
             }
 
-            var window = new Window
+            try
             {
-                Title = $"Editor - {Path.GetFileName(filePath)}",
-                Content = new ImageEditorPage(filePath)
-            };
+                var window = new Window
+                {
+                    Title = $"Editor - {Path.GetFileName(filePath)}",
+                    Content = new ImageEditorPage(filePath)
+                };
 
-            window.Closed += (_, _) =>
+                window.Closed += (_, _) =>
+                {
+                    OpenWindows.Remove(filePath);
+                };
+
+                OpenWindows[filePath] = window;
+                window.Activate();
+                TryMaximizeWindow(window);
+            }
+            catch (Exception ex)
             {
+                InAppToastService.Show($"Could not open editor ({ex.Message}).", InAppToastSeverity.Error);
                 OpenWindows.Remove(filePath);
-            };
-
-            OpenWindows[filePath] = window;
-            window.Activate();
-            TryMaximizeWindow(window);
+            }
         }
 
         private static void TryMaximizeWindow(Window window)

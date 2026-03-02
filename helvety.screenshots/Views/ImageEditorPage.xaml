@@ -52,15 +52,62 @@
                 <Border
                     Grid.Row="1"
                     Grid.ColumnSpan="2"
-                    Height="64"
+                    MinHeight="86"
                     Padding="0,6,0,0"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="0,1,0,0">
-                    <Grid>
+                    <VariableSizedWrapGrid Orientation="Horizontal">
+                        <StackPanel
+                            x:Name="SharedPrimarySettingsPanel"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            Margin="0,0,16,8">
+                            <TextBlock Text="Color" VerticalAlignment="Center" />
+                            <ComboBox
+                                x:Name="PrimaryColorComboBox"
+                                Width="128"
+                                Height="34"
+                                VerticalAlignment="Center"
+                                SelectionChanged="PrimaryColorComboBox_SelectionChanged">
+                                <ComboBoxItem Content="Fuchsia Red" Tag="#FFD81B60" IsSelected="True" />
+                                <ComboBoxItem Content="Blue" Tag="#FF4285F4" />
+                                <ComboBoxItem Content="Orange" Tag="#FFFFA500" />
+                                <ComboBoxItem Content="White" Tag="#FFFFFFFF" />
+                                <ComboBoxItem Content="Black" Tag="#FF000000" />
+                                <ComboBoxItem Content="Custom" Tag="#FFD81B60" />
+                            </ComboBox>
+                            <Button
+                                x:Name="PickPrimaryColorButton"
+                                Content="Pick"
+                                Height="34"
+                                Click="PickPrimaryColorButton_Click" />
+                            <Rectangle
+                                Width="1"
+                                Height="24"
+                                VerticalAlignment="Center"
+                                Fill="{ThemeResource CardStrokeColorDefaultBrush}" />
+                            <TextBlock Text="Thickness" VerticalAlignment="Center" />
+                            <Slider
+                                x:Name="PrimaryThicknessSlider"
+                                Width="220"
+                                Minimum="1"
+                                Maximum="24"
+                                StepFrequency="1"
+                                TickFrequency="1"
+                                Value="4"
+                                ValueChanged="PrimaryThicknessSlider_ValueChanged" />
+                            <TextBlock
+                                x:Name="PrimaryThicknessValueText"
+                                MinWidth="44"
+                                VerticalAlignment="Center"
+                                Text="4 px" />
+                        </StackPanel>
+
                         <StackPanel
                             x:Name="MoveToolSettingsPanel"
                             Orientation="Horizontal"
-                            Spacing="8">
+                            Spacing="8"
+                            Margin="0,0,16,8">
                             <TextBlock
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                 Text="Move mode: click an edit to select, drag to reposition."
@@ -77,12 +124,23 @@
                                 PlaceholderText="Edit selected text"
                                 TextChanged="MoveSelectedTextTextBox_TextChanged"
                                 Visibility="Collapsed" />
+                            <ToggleSwitch
+                                x:Name="PerformanceModeToggle"
+                                Header="Performance Mode"
+                                VerticalAlignment="Center"
+                                IsOn="False"
+                                Toggled="PerformanceModeToggle_Toggled" />
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Text="Defers heavy blur/highlight refresh while dragging to keep interactions smoother."
+                                VerticalAlignment="Center" />
                         </StackPanel>
 
                         <StackPanel
                             x:Name="TextToolSettingsPanel"
                             Orientation="Horizontal"
                             Spacing="8"
+                            Margin="0,0,16,8"
                             Visibility="Collapsed">
                             <Button
                                 x:Name="EditSelectedTextButton"
@@ -99,8 +157,8 @@
                             </ComboBox>
                             <TextBlock Text="Size" VerticalAlignment="Center" />
                             <NumberBox x:Name="TextSizeNumberBox" Width="84" Height="34" VerticalAlignment="Center" Minimum="8" Maximum="180" Value="38" ValueChanged="ToolSettingValueChanged" />
-                            <TextBlock Text="Color" VerticalAlignment="Center" />
-                            <ComboBox x:Name="TextColorComboBox" Width="108" Height="34" VerticalAlignment="Center" SelectionChanged="ToolSettingSelectionChanged">
+                            <TextBlock Text="Color" VerticalAlignment="Center" Visibility="Collapsed" />
+                            <ComboBox x:Name="TextColorComboBox" Width="108" Height="34" VerticalAlignment="Center" Visibility="Collapsed" SelectionChanged="ToolSettingSelectionChanged">
                                 <ComboBoxItem Content="Fuchsia Red" Tag="#FFD81B60" IsSelected="True" />
                                 <ComboBoxItem Content="White" Tag="#FFFFFFFF" />
                                 <ComboBoxItem Content="Black" Tag="#FF000000" />
@@ -108,7 +166,12 @@
                                 <ComboBoxItem Content="Orange" Tag="#FFFFA500" />
                                 <ComboBoxItem Content="Custom" Tag="#FFD81B60" />
                             </ComboBox>
-                            <Button Content="Pick" Height="34" Click="PickTextColorButton_Click" />
+                            <Button Content="Pick" Height="34" Visibility="Collapsed" Click="PickTextColorButton_Click" />
+                            <Rectangle
+                                Width="1"
+                                Height="24"
+                                VerticalAlignment="Center"
+                                Fill="{ThemeResource CardStrokeColorDefaultBrush}" />
                             <ToggleSwitch x:Name="TextBorderToggle" Header="Border" VerticalAlignment="Center" IsOn="False" Toggled="ToolSettingToggled" />
                             <ComboBox x:Name="TextBorderColorComboBox" Width="108" Height="34" VerticalAlignment="Center" SelectionChanged="ToolSettingSelectionChanged">
                                 <ComboBoxItem Content="White" Tag="#FFFFFFFF" IsSelected="True" />
@@ -118,7 +181,12 @@
                                 <ComboBoxItem Content="Custom" Tag="#FFFFFFFF" />
                             </ComboBox>
                             <Button Content="Pick" Height="34" Click="PickTextBorderColorButton_Click" />
-                            <NumberBox x:Name="TextBorderThicknessNumberBox" Width="72" Height="34" VerticalAlignment="Center" Minimum="1" Maximum="6" Value="1" ValueChanged="ToolSettingValueChanged" />
+                            <NumberBox x:Name="TextBorderThicknessNumberBox" Width="72" Height="34" VerticalAlignment="Center" Minimum="1" Maximum="24" Value="1" Visibility="Collapsed" ValueChanged="ToolSettingValueChanged" />
+                            <Rectangle
+                                Width="1"
+                                Height="24"
+                                VerticalAlignment="Center"
+                                Fill="{ThemeResource CardStrokeColorDefaultBrush}" />
                             <ToggleSwitch x:Name="TextShadowToggle" Header="Shadow" VerticalAlignment="Center" IsOn="True" Toggled="ToolSettingToggled" />
                             <ComboBox x:Name="TextShadowColorComboBox" Width="108" Height="34" VerticalAlignment="Center" SelectionChanged="ToolSettingSelectionChanged">
                                 <ComboBoxItem Content="Black" Tag="#66000000" IsSelected="True" />
@@ -134,20 +202,19 @@
                             x:Name="BorderToolSettingsPanel"
                             Orientation="Horizontal"
                             Spacing="8"
+                            Margin="0,0,16,8"
                             Visibility="Collapsed">
-                            <TextBlock Text="Thickness" VerticalAlignment="Center" />
-                            <NumberBox x:Name="BorderThicknessNumberBox" Width="84" Height="34" VerticalAlignment="Center" Minimum="1" Maximum="24" Value="4" ValueChanged="ToolSettingValueChanged" />
-                            <TextBlock Text="Corner Radius" VerticalAlignment="Center" />
-                            <NumberBox x:Name="BorderCornerRadiusNumberBox" Width="84" Height="34" VerticalAlignment="Center" Minimum="0" Maximum="50" Value="0" ValueChanged="ToolSettingValueChanged" />
-                            <TextBlock Text="Color" VerticalAlignment="Center" />
-                            <ComboBox x:Name="BorderColorComboBox" Width="108" Height="34" VerticalAlignment="Center" SelectionChanged="ToolSettingSelectionChanged">
+                            <TextBlock Text="Thickness" VerticalAlignment="Center" Visibility="Collapsed" />
+                            <NumberBox x:Name="BorderThicknessNumberBox" Width="84" Height="34" VerticalAlignment="Center" Minimum="1" Maximum="24" Value="4" Visibility="Collapsed" ValueChanged="ToolSettingValueChanged" />
+                            <TextBlock Text="Color" VerticalAlignment="Center" Visibility="Collapsed" />
+                            <ComboBox x:Name="BorderColorComboBox" Width="108" Height="34" VerticalAlignment="Center" Visibility="Collapsed" SelectionChanged="ToolSettingSelectionChanged">
                                 <ComboBoxItem Content="Fuchsia Red" Tag="#FFD81B60" IsSelected="True" />
                                 <ComboBoxItem Content="Blue" Tag="#FF4285F4" />
                                 <ComboBoxItem Content="Orange" Tag="#FFFFA500" />
                                 <ComboBoxItem Content="White" Tag="#FFFFFFFF" />
                                 <ComboBoxItem Content="Custom" Tag="#FFD81B60" />
                             </ComboBox>
-                            <Button Content="Pick" Height="34" Click="PickBorderColorButton_Click" />
+                            <Button Content="Pick" Height="34" Visibility="Collapsed" Click="PickBorderColorButton_Click" />
                             <ToggleSwitch x:Name="BorderShadowToggle" Header="Shadow" VerticalAlignment="Center" IsOn="True" Toggled="ToolSettingToggled" />
                             <ComboBox x:Name="BorderShadowColorComboBox" Width="108" Height="34" VerticalAlignment="Center" SelectionChanged="ToolSettingSelectionChanged">
                                 <ComboBoxItem Content="Black" Tag="#66000000" IsSelected="True" />
@@ -163,9 +230,15 @@
                             x:Name="BlurToolSettingsPanel"
                             Orientation="Horizontal"
                             Spacing="8"
+                            Margin="0,0,16,8"
                             Visibility="Collapsed">
                             <TextBlock Text="Blur Radius" VerticalAlignment="Center" />
                             <NumberBox x:Name="BlurRadiusNumberBox" Width="84" Height="34" VerticalAlignment="Center" Minimum="1" Maximum="25" Value="6" ValueChanged="ToolSettingValueChanged" />
+                            <Rectangle
+                                Width="1"
+                                Height="24"
+                                VerticalAlignment="Center"
+                                Fill="{ThemeResource CardStrokeColorDefaultBrush}" />
                             <ToggleSwitch
                                 x:Name="BlurInvertToggle"
                                 Header="Blur Outside Selection"
@@ -178,6 +251,7 @@
                             x:Name="HighlightToolSettingsPanel"
                             Orientation="Horizontal"
                             Spacing="8"
+                            Margin="0,0,16,8"
                             Visibility="Collapsed">
                             <TextBlock Text="Outside Dim" VerticalAlignment="Center" />
                             <Slider
@@ -185,7 +259,6 @@
                                 Width="220"
                                 Minimum="0"
                                 Maximum="80"
-                                Value="35"
                                 StepFrequency="1"
                                 TickFrequency="10"
                                 ValueChanged="HighlightDimSlider_ValueChanged" />
@@ -194,6 +267,11 @@
                                 MinWidth="56"
                                 VerticalAlignment="Center"
                                 Text="35%" />
+                            <Rectangle
+                                Width="1"
+                                Height="24"
+                                VerticalAlignment="Center"
+                                Fill="{ThemeResource CardStrokeColorDefaultBrush}" />
                             <ToggleSwitch
                                 x:Name="HighlightInvertToggle"
                                 Header="Dim Selection Instead"
@@ -206,11 +284,12 @@
                             x:Name="ArrowToolSettingsPanel"
                             Orientation="Horizontal"
                             Spacing="8"
+                            Margin="0,0,16,8"
                             Visibility="Collapsed">
-                            <TextBlock Text="Thickness" VerticalAlignment="Center" />
-                            <NumberBox x:Name="ArrowThicknessNumberBox" Width="84" Height="34" VerticalAlignment="Center" Minimum="1" Maximum="24" Value="4" ValueChanged="ToolSettingValueChanged" />
-                            <TextBlock Text="Color" VerticalAlignment="Center" />
-                            <ComboBox x:Name="ArrowColorComboBox" Width="108" Height="34" VerticalAlignment="Center" SelectionChanged="ToolSettingSelectionChanged">
+                            <TextBlock Text="Thickness" VerticalAlignment="Center" Visibility="Collapsed" />
+                            <NumberBox x:Name="ArrowThicknessNumberBox" Width="84" Height="34" VerticalAlignment="Center" Minimum="1" Maximum="24" Value="4" Visibility="Collapsed" ValueChanged="ToolSettingValueChanged" />
+                            <TextBlock Text="Color" VerticalAlignment="Center" Visibility="Collapsed" />
+                            <ComboBox x:Name="ArrowColorComboBox" Width="108" Height="34" VerticalAlignment="Center" Visibility="Collapsed" SelectionChanged="ToolSettingSelectionChanged">
                                 <ComboBoxItem Content="Fuchsia Red" Tag="#FFD81B60" IsSelected="True" />
                                 <ComboBoxItem Content="Blue" Tag="#FF4285F4" />
                                 <ComboBoxItem Content="Orange" Tag="#FFFFA500" />
@@ -218,7 +297,7 @@
                                 <ComboBoxItem Content="Black" Tag="#FF000000" />
                                 <ComboBoxItem Content="Custom" Tag="#FFD81B60" />
                             </ComboBox>
-                            <Button Content="Pick" Height="34" Click="PickArrowColorButton_Click" />
+                            <Button Content="Pick" Height="34" Visibility="Collapsed" Click="PickArrowColorButton_Click" />
                             <ToggleSwitch x:Name="ArrowBorderToggle" Header="Border" VerticalAlignment="Center" IsOn="False" Toggled="ToolSettingToggled" />
                             <ComboBox x:Name="ArrowBorderColorComboBox" Width="108" Height="34" VerticalAlignment="Center" SelectionChanged="ToolSettingSelectionChanged">
                                 <ComboBoxItem Content="Black" Tag="#FF000000" />
@@ -228,6 +307,11 @@
                             </ComboBox>
                             <Button Content="Pick" Height="34" Click="PickArrowBorderColorButton_Click" />
                             <NumberBox x:Name="ArrowBorderThicknessNumberBox" Width="72" Height="34" VerticalAlignment="Center" Minimum="1" Maximum="8" Value="1" ValueChanged="ToolSettingValueChanged" />
+                            <Rectangle
+                                Width="1"
+                                Height="24"
+                                VerticalAlignment="Center"
+                                Fill="{ThemeResource CardStrokeColorDefaultBrush}" />
                             <ToggleSwitch x:Name="ArrowShadowToggle" Header="Shadow" VerticalAlignment="Center" IsOn="True" Toggled="ToolSettingToggled" />
                             <ComboBox x:Name="ArrowShadowColorComboBox" Width="108" Height="34" VerticalAlignment="Center" SelectionChanged="ToolSettingSelectionChanged">
                                 <ComboBoxItem Content="Black" Tag="#66000000" IsSelected="True" />
@@ -237,6 +321,11 @@
                             </ComboBox>
                             <Button Content="Pick" Height="34" Click="PickArrowShadowColorButton_Click" />
                             <NumberBox x:Name="ArrowShadowOffsetNumberBox" Width="72" Height="34" VerticalAlignment="Center" Minimum="1" Maximum="24" Value="2" ValueChanged="ToolSettingValueChanged" />
+                            <Rectangle
+                                Width="1"
+                                Height="24"
+                                VerticalAlignment="Center"
+                                Fill="{ThemeResource CardStrokeColorDefaultBrush}" />
                             <TextBlock Text="Head" VerticalAlignment="Center" />
                             <ComboBox x:Name="ArrowHeadComboBox" Width="120" Height="34" VerticalAlignment="Center" SelectionChanged="ToolSettingSelectionChanged">
                                 <ComboBoxItem Content="Triangle" Tag="Triangle" IsSelected="True" />
@@ -248,13 +337,37 @@
                             x:Name="CropToolSettingsPanel"
                             Orientation="Horizontal"
                             Spacing="8"
+                            Margin="0,0,16,8"
                             Visibility="Collapsed">
                             <TextBlock
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                 Text="Crop has no settings yet. Drag a region, then click Save Crop."
                                 VerticalAlignment="Center" />
                         </StackPanel>
-                    </Grid>
+
+                        <StackPanel
+                            x:Name="RegionCornerRadiusPanel"
+                            Orientation="Horizontal"
+                            Spacing="8"
+                            Margin="0,0,16,8"
+                            Visibility="Collapsed">
+                            <TextBlock Text="Corner Radius" VerticalAlignment="Center" />
+                            <Slider
+                                x:Name="RegionCornerRadiusSlider"
+                                Width="220"
+                                Minimum="0"
+                                Maximum="24"
+                                StepFrequency="1"
+                                TickFrequency="4"
+                                Value="8"
+                                ValueChanged="RegionCornerRadiusSlider_ValueChanged" />
+                            <TextBlock
+                                x:Name="RegionCornerRadiusValueText"
+                                MinWidth="40"
+                                VerticalAlignment="Center"
+                                Text="8 px" />
+                        </StackPanel>
+                    </VariableSizedWrapGrid>
                 </Border>
             </Grid>
         </Border>
@@ -376,20 +489,8 @@
                             Tag="Highlight"
                             Click="ToolButton_Click">
                             <StackPanel Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <SymbolIcon Symbol="Highlight" />
+                                <FontIcon Glyph="&#xE790;" />
                                 <TextBlock FontSize="11" Text="Highlight" />
-                            </StackPanel>
-                        </Button>
-
-                        <Button
-                            x:Name="CropToolButton"
-                            Width="124"
-                            Height="64"
-                            Tag="Crop"
-                            Click="ToolButton_Click">
-                            <StackPanel Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                <FontIcon Glyph="&#xE7A8;" />
-                                <TextBlock FontSize="11" Text="Crop" />
                             </StackPanel>
                         </Button>
 
@@ -402,6 +503,18 @@
                             <StackPanel Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
                                 <SymbolIcon Symbol="Forward" />
                                 <TextBlock FontSize="11" Text="Arrow" />
+                            </StackPanel>
+                        </Button>
+
+                        <Button
+                            x:Name="CropToolButton"
+                            Width="124"
+                            Height="64"
+                            Tag="Crop"
+                            Click="ToolButton_Click">
+                            <StackPanel Spacing="4" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xE7A8;" />
+                                <TextBlock FontSize="11" Text="Crop" />
                             </StackPanel>
                         </Button>
                     </StackPanel>
@@ -429,6 +542,9 @@
                             Stretch="None" />
                         <Canvas
                             x:Name="HighlightDimCanvas"
+                            IsHitTestVisible="False" />
+                        <Canvas
+                            x:Name="LayersCanvas"
                             IsHitTestVisible="False" />
                         <Canvas
                             x:Name="OverlayCanvas"
