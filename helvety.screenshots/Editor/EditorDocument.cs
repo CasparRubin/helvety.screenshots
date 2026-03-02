@@ -299,6 +299,8 @@ namespace helvety.screenshots.Editor
 
         internal int Radius { get; set; }
 
+        internal int Feather { get; set; }
+
         internal int CornerRadius { get; set; }
 
         internal override EditorRect GetBounds()

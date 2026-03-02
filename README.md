@@ -19,12 +19,12 @@ Expect rapid changes, incomplete features, and occasional breaking behavior whil
 - Thumbnail previews for common image formats (PNG, JPG/JPEG, BMP, GIF, TIFF; WebP when codec is installed)
 - File metadata shown as European date/time format (`dd.MM.yyyy HH:mm`) plus relative age (`... ago`)
 - Built-in image editor tools (Move, Text, Border, Blur, Highlight, Arrow, Crop; Crop is last in the toolbar)
-- Stable two-row editor settings area (shared controls + active-tool controls) with horizontal overflow handling
+- Single-row editor settings strip with horizontal overflow handling; settings switch contextually to the active tool (or selected layer while Move is active)
 - Layer list with drag-and-drop reordering (top item is rendered in front)
 - Export section under Layers (bottom-right) with Save As New File, Override Existing File, Copy, and contextual Save Crop
 - Arrow drawing with live preview while dragging
 - Quick text re-edit via selected-layer editor controls
-- Blur + Highlight invert modes (toggle whether effect targets the selection or the outside area)
+- Blur settings include Radius, Corner Radius, Feather, and Invert; Highlight includes Dim, Corner Radius, and Invert (inside/outside targeting)
 - GPU-accelerated blur/highlight effects (Win2D-based) with interaction-first recomposition scheduling
 - Editor performance optimizations: coalesced recomposition, reduced overlay churn, and deferred pixel-effect recomposition during drag/resize
 - Optional `Performance Mode` toggle in editor settings to prioritize responsiveness during intensive layer editing

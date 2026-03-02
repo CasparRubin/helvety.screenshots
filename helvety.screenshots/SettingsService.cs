@@ -33,6 +33,7 @@ namespace helvety.screenshots
         private const bool DefaultEditorArrowShadowEnabled = true;
         private const string DefaultEditorArrowFormStyle = "Tapered";
         private const int DefaultEditorBlurRadius = 6;
+        private const int DefaultEditorBlurFeather = 0;
         private const bool DefaultEditorBlurInvertMode = false;
         private const int DefaultEditorHighlightDimPercent = 35;
         private const bool DefaultEditorHighlightInvertMode = false;
@@ -78,6 +79,7 @@ namespace helvety.screenshots
         private const string EditorArrowShadowOffsetKey = "EditorArrowShadowOffset";
         private const string EditorArrowFormStyleKey = "EditorArrowFormStyle";
         private const string EditorBlurRadiusKey = "EditorBlurRadius";
+        private const string EditorBlurFeatherKey = "EditorBlurFeather";
         private const string EditorBlurInvertModeKey = "EditorBlurInvertMode";
         private const string EditorHighlightDimPercentKey = "EditorHighlightDimPercent";
         private const string EditorHighlightInvertModeKey = "EditorHighlightInvertMode";
@@ -119,6 +121,7 @@ namespace helvety.screenshots
             EditorArrowShadowOffsetKey,
             EditorArrowFormStyleKey,
             EditorBlurRadiusKey,
+            EditorBlurFeatherKey,
             EditorBlurInvertModeKey,
             EditorHighlightDimPercentKey,
             EditorHighlightInvertModeKey,
@@ -316,6 +319,7 @@ namespace helvety.screenshots
                 ReadBool(values, EditorArrowShadowEnabledKey, DefaultEditorArrowShadowEnabled),
                 ReadString(values, EditorArrowFormStyleKey, DefaultEditorArrowFormStyle),
                 ReadInt(values, EditorBlurRadiusKey, DefaultEditorBlurRadius, 1, 25),
+                ReadInt(values, EditorBlurFeatherKey, DefaultEditorBlurFeather, 0, 40),
                 ReadBool(values, EditorBlurInvertModeKey, DefaultEditorBlurInvertMode),
                 ReadInt(values, EditorHighlightDimPercentKey, DefaultEditorHighlightDimPercent, 0, 80),
                 ReadBool(values, EditorHighlightInvertModeKey, DefaultEditorHighlightInvertMode),
@@ -344,6 +348,7 @@ namespace helvety.screenshots
             values[EditorArrowShadowEnabledKey] = settings.ArrowShadowEnabled;
             values[EditorArrowFormStyleKey] = settings.ArrowFormStyle;
             values[EditorBlurRadiusKey] = Clamp(settings.BlurRadius, 1, 25);
+            values[EditorBlurFeatherKey] = Clamp(settings.BlurFeather, 0, 40);
             values[EditorBlurInvertModeKey] = settings.BlurInvertMode;
             values[EditorHighlightDimPercentKey] = Clamp(settings.HighlightDimPercent, 0, 80);
             values[EditorHighlightInvertModeKey] = settings.HighlightInvertMode;
@@ -596,6 +601,7 @@ namespace helvety.screenshots
             values[EditorArrowShadowEnabledKey] = DefaultEditorArrowShadowEnabled;
             values[EditorArrowFormStyleKey] = DefaultEditorArrowFormStyle;
             values[EditorBlurRadiusKey] = DefaultEditorBlurRadius;
+            values[EditorBlurFeatherKey] = DefaultEditorBlurFeather;
             values[EditorBlurInvertModeKey] = DefaultEditorBlurInvertMode;
             values[EditorHighlightDimPercentKey] = DefaultEditorHighlightDimPercent;
             values[EditorHighlightInvertModeKey] = DefaultEditorHighlightInvertMode;
@@ -753,6 +759,7 @@ namespace helvety.screenshots
         bool ArrowShadowEnabled,
         string ArrowFormStyle,
         int BlurRadius,
+        int BlurFeather,
         bool BlurInvertMode,
         int HighlightDimPercent,
         bool HighlightInvertMode,

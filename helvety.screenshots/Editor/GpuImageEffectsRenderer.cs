@@ -107,10 +107,15 @@ namespace helvety.screenshots.Editor
                     };
 
                     var effectiveCornerRadius = GetEffectiveCornerRadius(clampedRegion, blurLayer.CornerRadius);
-                    var blurMask = blurInvertMode
-                        ? CreateOutsideRoundedRectMask(imageWidth, imageHeight, clampedRegion, effectiveCornerRadius)
-                        : CreateInsideRoundedRectMask(imageWidth, imageHeight, clampedRegion, effectiveCornerRadius);
-                    tempResources.Add(blurMask);
+                    var featherAmount = Math.Clamp((float)blurLayer.Feather, 0f, 40f);
+                    var blurMask = CreateBlurMask(
+                        imageWidth,
+                        imageHeight,
+                        clampedRegion,
+                        effectiveCornerRadius,
+                        blurInvertMode,
+                        featherAmount,
+                        tempResources);
 
                     currentImage = BlendByMask(currentImage, blurred, blurMask);
                 }
@@ -257,6 +262,33 @@ namespace helvety.screenshots.Editor
             return mask;
         }
 
+        private ICanvasImage CreateBlurMask(
+            int imageWidth,
+            int imageHeight,
+            EditorRect region,
+            int cornerRadius,
+            bool blurInvertMode,
+            float featherAmount,
+            ICollection<IDisposable> tempResources)
+        {
+            var baseMask = blurInvertMode
+                ? CreateOutsideRoundedRectMask(imageWidth, imageHeight, region, cornerRadius)
+                : CreateInsideRoundedRectMask(imageWidth, imageHeight, region, cornerRadius);
+            tempResources.Add(baseMask);
+            if (featherAmount <= 0f)
+            {
+                return baseMask;
+            }
+
+            return new GaussianBlurEffect
+            {
+                Source = baseMask,
+                BlurAmount = featherAmount,
+                BorderMode = EffectBorderMode.Hard,
+                Optimization = EffectOptimization.Speed
+            };
+        }
+
         private static ICanvasImage BlendByMask(ICanvasImage baseImage, ICanvasImage replacementImage, ICanvasImage mask)
         {
             var replacementMasked = new AlphaMaskEffect
@@ -265,33 +297,12 @@ namespace helvety.screenshots.Editor
                 AlphaMask = mask
             };
 
-            var baseMasked = new AlphaMaskEffect
-            {
-                Source = baseImage,
-                AlphaMask = new ColorMatrixEffect
-                {
-                    Source = mask,
-                    ColorMatrix = new Matrix5x4
-                    {
-                        M11 = -1f,
-                        M22 = -1f,
-                        M33 = -1f,
-                        M44 = -1f,
-                        M51 = 1f,
-                        M52 = 1f,
-                        M53 = 1f,
-                        M54 = 1f
-                    },
-                    ClampOutput = true
-                }
-            };
-
             return new CompositeEffect
             {
                 Mode = CanvasComposite.SourceOver,
                 Sources =
                 {
-                    baseMasked,
+                    baseImage,
                     replacementMasked
                 }
             };

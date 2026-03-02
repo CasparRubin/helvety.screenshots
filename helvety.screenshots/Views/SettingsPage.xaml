@@ -32,17 +32,20 @@
                                 TextWrapping="WrapWholeWords" />
                         </StackPanel>
 
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <StackPanel Grid.Column="1" Style="{StaticResource SettingsInlineRowStackPanelStyle}">
                             <Button
                                 x:Name="ChooseSaveFolderButton"
+                                Style="{StaticResource SettingsInlineButtonStyle}"
                                 Click="ChooseSaveFolderButton_Click"
                                 Content="Choose Folder" />
                             <Button
                                 x:Name="UseDefaultSaveFolderButton"
+                                Style="{StaticResource SettingsInlineButtonStyle}"
                                 Click="UseDefaultSaveFolderButton_Click"
                                 Content="Use Default" />
                             <Button
                                 x:Name="RemoveSaveFolderButton"
+                                Style="{StaticResource SettingsInlineButtonStyle}"
                                 Click="RemoveSaveFolderButton_Click"
                                 Content="Remove Save Location" />
                         </StackPanel>
@@ -71,19 +74,22 @@
                         Text="Current Binding: Shift+S+S+S"
                         TextWrapping="WrapWholeWords" />
 
-                    <StackPanel Orientation="Horizontal" Spacing="16">
+                    <StackPanel Style="{StaticResource SettingsInlineRowStackPanelStyle}">
                         <CheckBox
                             x:Name="CtrlModifierCheckBox"
+                            Style="{StaticResource SettingsInlineControlStyle}"
                             Checked="ModifierCheckBox_Changed"
                             Content="Ctrl"
                             Unchecked="ModifierCheckBox_Changed" />
                         <CheckBox
                             x:Name="AltModifierCheckBox"
+                            Style="{StaticResource SettingsInlineControlStyle}"
                             Checked="ModifierCheckBox_Changed"
                             Content="Alt"
                             Unchecked="ModifierCheckBox_Changed" />
                         <CheckBox
                             x:Name="ShiftModifierCheckBox"
+                            Style="{StaticResource SettingsInlineControlStyle}"
                             Checked="ModifierCheckBox_Changed"
                             Content="Shift"
                             Unchecked="ModifierCheckBox_Changed" />
@@ -152,17 +158,20 @@
                         Style="{StaticResource SettingsSectionDescriptionTextStyle}"
                         Text=""
                         />
-                    <StackPanel Orientation="Horizontal" Spacing="8">
+                    <StackPanel Style="{StaticResource SettingsInlineRowStackPanelStyle}">
                         <Button
                             x:Name="ApplyHotkeyButton"
+                            Style="{StaticResource SettingsInlineButtonStyle}"
                             Click="ApplyHotkeyButton_Click"
                             Content="Apply Hotkey" />
                         <Button
                             x:Name="UseDefaultHotkeyButton"
+                            Style="{StaticResource SettingsInlineButtonStyle}"
                             Click="UseDefaultHotkeyButton_Click"
                             Content="Use Default" />
                         <Button
                             x:Name="RemoveHotkeyButton"
+                            Style="{StaticResource SettingsInlineButtonStyle}"
                             Click="RemoveHotkeyButton_Click"
                             Content="Remove Hotkey" />
                     </StackPanel>
@@ -175,7 +184,7 @@
                     <TextBlock Style="{StaticResource SettingsSectionTitleTextStyle}" Text="Screenshot Mode" />
                     <TextBlock
                         Style="{StaticResource SettingsSectionDescriptionTextStyle}"
-                        Text="Capture behavior is fixed: left-click saves and exits, right-click saves and continues."
+                        Text="Capture behavior is fixed: left-click saves, copies to clipboard, and exits screenshot mode; right-click saves and keeps screenshot mode active."
                         />
 
                     <Border
@@ -187,10 +196,12 @@
                         Style="{StaticResource SettingsSectionDescriptionTextStyle}"
                         Text="Control the visual intensity of screenshot border animations."
                         />
-                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <TextBlock VerticalAlignment="Center" Text="Intensity" />
+                    <StackPanel Style="{StaticResource SettingsInlineRowStackPanelStyle}">
+                        <TextBlock Style="{StaticResource SettingsInlineLabelTextStyle}" Text="Intensity" />
                         <ComboBox
                             x:Name="BorderIntensityComboBox"
+                            Style="{StaticResource SettingsInlineControlStyle}"
+                            Height="34"
                             IsTextSearchEnabled="False"
                             MinWidth="170"
                             SelectionChanged="BorderIntensityComboBox_SelectionChanged">
@@ -209,10 +220,12 @@
                         Style="{StaticResource SettingsSectionDescriptionTextStyle}"
                         Text="Choose screenshot enhancement level. Fast is quickest, Optimized improves text readability, Heavy applies stronger processing."
                         />
-                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <TextBlock VerticalAlignment="Center" Text="Mode" />
+                    <StackPanel Style="{StaticResource SettingsInlineRowStackPanelStyle}">
+                        <TextBlock Style="{StaticResource SettingsInlineLabelTextStyle}" Text="Mode" />
                         <ComboBox
                             x:Name="ScreenshotQualityModeComboBox"
+                            Style="{StaticResource SettingsInlineControlStyle}"
+                            Height="34"
                             IsTextSearchEnabled="False"
                             MinWidth="190"
                             SelectionChanged="ScreenshotQualityModeComboBox_SelectionChanged">
@@ -233,6 +246,7 @@
                         />
                     <CheckBox
                         x:Name="ShowOverlayInstructionsCheckBox"
+                        Style="{StaticResource SettingsInlineControlStyle}"
                         Checked="ShowOverlayInstructionsCheckBox_Changed"
                         Content="Show screenshot mode overlay instructions"
                         Unchecked="ShowOverlayInstructionsCheckBox_Changed" />
@@ -249,6 +263,7 @@
                         />
                     <CheckBox
                         x:Name="MinimizeToTrayOnCloseCheckBox"
+                        Style="{StaticResource SettingsInlineControlStyle}"
                         Checked="MinimizeToTrayOnCloseCheckBox_Changed"
                         Content="Keep app running in notification area when window is closed"
                         Unchecked="MinimizeToTrayOnCloseCheckBox_Changed" />
@@ -264,6 +279,7 @@
                         TextWrapping="WrapWholeWords" />
                     <CheckBox
                         x:Name="EditorPerformanceModeCheckBox"
+                        Style="{StaticResource SettingsInlineControlStyle}"
                         Checked="EditorPerformanceModeCheckBox_Changed"
                         Content="Enable Editor Performance Mode"
                         Unchecked="EditorPerformanceModeCheckBox_Changed" />
@@ -280,6 +296,7 @@
                         />
                     <Button
                         x:Name="ResetSettingsButton"
+                        Style="{StaticResource SettingsInlineButtonStyle}"
                         Click="ResetSettingsButton_Click"
                         Content="Reset to Defaults" />
                 </StackPanel>

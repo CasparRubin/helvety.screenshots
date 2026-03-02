@@ -92,7 +92,6 @@ namespace helvety.screenshots.Views
         private double _lastAppliedFitWidthZoom = 1d;
         private InMemoryRandomAccessStream? _clipboardImageStream;
         private bool _isCropSelected;
-        private bool _isUpdatingSelectedTextUi;
         private bool _isSyncingToolSettings;
         private bool _isInitializingUi = true;
         private bool _isSyncingRegionCornerRadius;
@@ -364,7 +363,8 @@ namespace helvety.screenshots.Views
             BlurToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Blur ? Visibility.Visible : Visibility.Collapsed;
             HighlightToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Highlight ? Visibility.Visible : Visibility.Collapsed;
             ArrowToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Arrow ? Visibility.Visible : Visibility.Collapsed;
-            SyncSharedPrimaryControls();
+            CropToolSettingsPanel.Visibility = _settingsTool == EditorToolType.Crop ? Visibility.Visible : Visibility.Collapsed;
+            UpdateArrowShadowToggleState(forceOffWhenUnsupported: true);
         }
 
         private EditorToolType ResolveSettingsTool()
@@ -818,6 +818,7 @@ namespace helvety.screenshots.Views
             var radius = Clamp((int)Math.Round(BlurRadiusNumberBox.Value), 1, 25);
             var layer = new BlurLayer(region, radius)
             {
+                Feather = Clamp((int)Math.Round(BlurFeatherSlider.Value), 0, 40),
                 CornerRadius = _regionCornerRadius
             };
             _document.Layers.Insert(0, layer);
@@ -1045,7 +1046,7 @@ namespace helvety.screenshots.Views
                                     var error = string.IsNullOrWhiteSpace(_gpuImageEffectsRenderer.LastError)
                                         ? "unknown error"
                                         : _gpuImageEffectsRenderer.LastError;
-                                    InAppToastService.Show($"GPU rendering failed ({error}). Effects are temporarily skipped for stability.", InAppToastSeverity.Warning);
+                                    InAppToastService.Show($"GPU rendering failed ({error}). GPU effects are disabled for this editing session.", InAppToastSeverity.Warning);
                                 }
                             }
                         }
@@ -1307,7 +1308,9 @@ namespace helvety.screenshots.Views
         private void DrawArrowLayer(ArrowLayer arrowLayer, bool suppressExpensiveEffects, Canvas targetCanvas)
         {
             var baseThickness = Math.Max(1, arrowLayer.Thickness);
-            if (!suppressExpensiveEffects && arrowLayer.HasShadow)
+            if (!suppressExpensiveEffects &&
+                arrowLayer.FormStyle != ArrowFormStyle.Tapered &&
+                arrowLayer.HasShadow)
             {
                 DrawFeatheredArrowShadow(arrowLayer, baseThickness, targetCanvas);
             }
@@ -2139,36 +2142,18 @@ namespace helvety.screenshots.Views
         {
             if (_document is null || _isCropSelected || _activeTool != EditorToolType.Move || !_selectedLayerId.HasValue)
             {
-                MoveSelectedTextLabel.Visibility = Visibility.Collapsed;
-                MoveSelectedTextTextBox.Visibility = Visibility.Collapsed;
                 EditSelectedTextButton.Visibility = Visibility.Collapsed;
                 return;
             }
 
             var layer = TryGetLayerById(_selectedLayerId.Value);
-            if (layer is not TextLayer textLayer)
+            if (layer is not TextLayer)
             {
-                MoveSelectedTextLabel.Visibility = Visibility.Collapsed;
-                MoveSelectedTextTextBox.Visibility = Visibility.Collapsed;
                 EditSelectedTextButton.Visibility = Visibility.Collapsed;
                 return;
             }
 
-            MoveSelectedTextLabel.Visibility = Visibility.Visible;
-            MoveSelectedTextTextBox.Visibility = Visibility.Visible;
             EditSelectedTextButton.Visibility = Visibility.Visible;
-            _isUpdatingSelectedTextUi = true;
-            try
-            {
-                if (!string.Equals(MoveSelectedTextTextBox.Text, textLayer.Text, StringComparison.Ordinal))
-                {
-                    MoveSelectedTextTextBox.Text = textLayer.Text;
-                }
-            }
-            finally
-            {
-                _isUpdatingSelectedTextUi = false;
-            }
         }
 
         private void EditSelectedTextButton_Click(object sender, RoutedEventArgs e)
@@ -2179,23 +2164,6 @@ namespace helvety.screenshots.Views
             }
 
             BeginInlineTextEntryForLayer(textLayer);
-        }
-
-        private void MoveSelectedTextTextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (_isUpdatingSelectedTextUi || _document is null || !_selectedLayerId.HasValue)
-            {
-                return;
-            }
-
-            var layer = TryGetLayerById(_selectedLayerId.Value);
-            if (layer is not TextLayer textLayer)
-            {
-                return;
-            }
-
-            textLayer.UpdateText(MoveSelectedTextTextBox.Text ?? string.Empty);
-            QueueRecompose(includeAdorners: true, includePixelEffects: false);
         }
 
         private void CommitInlineTextEditor()
@@ -2304,49 +2272,23 @@ namespace helvety.screenshots.Views
                 return;
             }
 
+            if (ReferenceEquals(sender, ArrowFormComboBox))
+            {
+                UpdateArrowShadowToggleState(forceOffWhenUnsupported: true);
+            }
+
             ApplySettingsToSelectedLayer();
             SaveCurrentEditorUiSettings();
         }
 
-        private void PrimaryColorComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private async void PickTextColorButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_isSyncingToolSettings)
-            {
-                return;
-            }
-
-            if (_isInitializingUi)
-            {
-                return;
-            }
-
-            var selectedColor = GetSelectedColorHex(PrimaryColorComboBox, DefaultPrimaryColor);
-            ApplySharedPrimaryColor(selectedColor);
-            ApplySettingsToSelectedLayer();
-            SaveCurrentEditorUiSettings();
+            await PickColorForComboBoxAsync(TextColorComboBox, DefaultTextColor, "Pick text color");
         }
 
-        private async void PickPrimaryColorButton_Click(object sender, RoutedEventArgs e)
+        private async void PickBorderColorButton_Click(object sender, RoutedEventArgs e)
         {
-            await PickColorForComboBoxAsync(PrimaryColorComboBox, DefaultPrimaryColor, "Pick color");
-        }
-
-        private void PrimaryThicknessSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
-        {
-            if (_isSyncingToolSettings)
-            {
-                return;
-            }
-
-            if (_isInitializingUi)
-            {
-                return;
-            }
-
-            var thickness = Clamp((int)Math.Round(e.NewValue), 1, MaxPrimaryThickness);
-            ApplySharedPrimaryThickness(thickness);
-            ApplySettingsToSelectedLayer();
-            SaveCurrentEditorUiSettings();
+            await PickColorForComboBoxAsync(BorderColorComboBox, DefaultPrimaryColor, "Pick border color");
         }
 
         private async void PickTextBorderColorButton_Click(object sender, RoutedEventArgs e)
@@ -2359,7 +2301,12 @@ namespace helvety.screenshots.Views
             await PickColorForComboBoxAsync(ArrowBorderColorComboBox, DefaultBorderColor, "Pick arrow border color");
         }
 
-        private void ToolSettingValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+        private async void PickArrowColorButton_Click(object sender, RoutedEventArgs e)
+        {
+            await PickColorForComboBoxAsync(ArrowColorComboBox, DefaultPrimaryColor, "Pick arrow color");
+        }
+
+        private void ToolSettingSliderValueChanged(object sender, RangeBaseValueChangedEventArgs args)
         {
             if (_isSyncingToolSettings)
             {
@@ -2371,6 +2318,7 @@ namespace helvety.screenshots.Views
                 return;
             }
 
+            UpdateAllSettingValueTexts();
             ApplySettingsToSelectedLayer();
             SaveCurrentEditorUiSettings();
         }
@@ -2477,17 +2425,18 @@ namespace helvety.screenshots.Views
                         TextSizeNumberBox.Value = textLayer.FontSize;
                         TextBorderToggle.IsOn = textLayer.HasBorder;
                         TextBorderThicknessNumberBox.Value = textLayer.BorderThickness;
-                        SharedShadowToggle.IsOn = textLayer.HasShadow;
+                        TextShadowToggle.IsOn = textLayer.HasShadow;
                         SelectComboItemByContent(TextFontComboBox, GetFontName(textLayer.FontFamily));
                         break;
                     case BorderLayer borderLayer:
                         BorderThicknessNumberBox.Value = borderLayer.Thickness;
                         SetRegionCornerRadius(borderLayer.CornerRadius);
                         SetComboBoxSelectedColor(BorderColorComboBox, borderLayer.ColorHex);
-                        SharedShadowToggle.IsOn = borderLayer.HasShadow;
+                        BorderShadowToggle.IsOn = borderLayer.HasShadow;
                         break;
                     case BlurLayer blurLayer:
                         BlurRadiusNumberBox.Value = blurLayer.Radius;
+                        BlurFeatherSlider.Value = Clamp(blurLayer.Feather, 0, 40);
                         SetRegionCornerRadius(blurLayer.CornerRadius);
                         BlurInvertToggle.IsOn = _blurInvertMode;
                         break;
@@ -2497,8 +2446,10 @@ namespace helvety.screenshots.Views
                         ArrowBorderToggle.IsOn = arrowLayer.HasBorder;
                         SetComboBoxSelectedColor(ArrowBorderColorComboBox, arrowLayer.BorderColorHex);
                         ArrowBorderThicknessNumberBox.Value = arrowLayer.BorderThickness;
-                        SharedShadowToggle.IsOn = arrowLayer.HasShadow;
                         SelectComboItemByTag(ArrowFormComboBox, arrowLayer.FormStyle.ToString());
+                        ArrowShadowToggle.IsOn = arrowLayer.FormStyle == ArrowFormStyle.Tapered
+                            ? false
+                            : arrowLayer.HasShadow;
                         break;
                     case HighlightLayer highlightLayer:
                         SetRegionCornerRadius(highlightLayer.CornerRadius);
@@ -2513,7 +2464,8 @@ namespace helvety.screenshots.Views
                 _isSyncingToolSettings = false;
             }
 
-            SyncSharedPrimaryControls();
+            UpdateArrowShadowToggleState(forceOffWhenUnsupported: true);
+            UpdateAllSettingValueTexts();
         }
 
         private void ApplyPersistedEditorUiSettings()
@@ -2524,13 +2476,10 @@ namespace helvety.screenshots.Views
             _isSyncingRegionCornerRadius = true;
             try
             {
-                SetComboBoxSelectedColor(PrimaryColorComboBox, settings.PrimaryColorHex);
                 SetComboBoxSelectedColor(TextColorComboBox, settings.PrimaryColorHex);
                 SetComboBoxSelectedColor(BorderColorComboBox, settings.PrimaryColorHex);
                 SetComboBoxSelectedColor(ArrowColorComboBox, settings.PrimaryColorHex);
 
-                PrimaryThicknessSlider.Value = Clamp(settings.PrimaryThickness, 1, MaxPrimaryThickness);
-                PrimaryThicknessValueText.Text = $"{(int)Math.Round(PrimaryThicknessSlider.Value)} px";
                 TextBorderThicknessNumberBox.Value = Clamp(settings.TextBorderThickness, 1, MaxPrimaryThickness);
                 BorderThicknessNumberBox.Value = Clamp(settings.PrimaryThickness, 1, MaxPrimaryThickness);
                 ArrowThicknessNumberBox.Value = Clamp(settings.PrimaryThickness, 1, MaxPrimaryThickness);
@@ -2539,7 +2488,9 @@ namespace helvety.screenshots.Views
                 TextSizeNumberBox.Value = Clamp(settings.TextSize, 8, 180);
                 TextBorderToggle.IsOn = settings.TextBorderEnabled;
                 SetComboBoxSelectedColor(TextBorderColorComboBox, settings.TextBorderColorHex);
-                SharedShadowToggle.IsOn = settings.TextShadowEnabled || settings.BorderShadowEnabled || settings.ArrowShadowEnabled;
+                TextShadowToggle.IsOn = settings.TextShadowEnabled;
+                BorderShadowToggle.IsOn = settings.BorderShadowEnabled;
+                ArrowShadowToggle.IsOn = settings.ArrowShadowEnabled;
 
                 ArrowBorderToggle.IsOn = settings.ArrowBorderEnabled;
                 SetComboBoxSelectedColor(ArrowBorderColorComboBox, settings.ArrowBorderColorHex);
@@ -2547,6 +2498,7 @@ namespace helvety.screenshots.Views
                 SelectComboItemByTag(ArrowFormComboBox, settings.ArrowFormStyle);
 
                 BlurRadiusNumberBox.Value = Clamp(settings.BlurRadius, 1, 25);
+                BlurFeatherSlider.Value = Clamp(settings.BlurFeather, 0, 40);
                 _blurInvertMode = settings.BlurInvertMode;
                 BlurInvertToggle.IsOn = _blurInvertMode;
 
@@ -2557,8 +2509,7 @@ namespace helvety.screenshots.Views
                 HighlightInvertToggle.IsOn = _highlightInvertMode;
 
                 _regionCornerRadius = Clamp(settings.RegionCornerRadius, 0, MaxRegionCornerRadius);
-                RegionCornerRadiusSlider.Value = _regionCornerRadius;
-                RegionCornerRadiusValueText.Text = $"{_regionCornerRadius} px";
+                SetRegionCornerRadius(_regionCornerRadius);
                 _performanceModeEnabled = settings.PerformanceModeEnabled;
                 _gpuEffectsEnabled = settings.GpuEffectsEnabled;
             }
@@ -2567,26 +2518,31 @@ namespace helvety.screenshots.Views
                 _isSyncingRegionCornerRadius = false;
                 _isSyncingToolSettings = false;
             }
+
+            UpdateArrowShadowToggleState(forceOffWhenUnsupported: true);
+            UpdateAllSettingValueTexts();
         }
 
         private void SaveCurrentEditorUiSettings()
         {
+            var arrowShadowEnabled = GetCurrentArrowShadowEnabled();
             var settings = new EditorUiSettings(
-                GetSelectedColorHex(PrimaryColorComboBox, DefaultPrimaryColor),
-                Clamp((int)Math.Round(PrimaryThicknessSlider.Value), 1, MaxPrimaryThickness),
+                GetSelectedColorHex(BorderColorComboBox, DefaultPrimaryColor),
+                Clamp((int)Math.Round(BorderThicknessNumberBox.Value), 1, MaxPrimaryThickness),
                 GetSelectedFont(),
                 Clamp((int)Math.Round(TextSizeNumberBox.Value), 8, 180),
                 TextBorderToggle.IsOn,
                 GetSelectedColorHex(TextBorderColorComboBox, DefaultBorderColor),
                 Clamp((int)Math.Round(TextBorderThicknessNumberBox.Value), 1, MaxPrimaryThickness),
-                SharedShadowToggle.IsOn,
-                SharedShadowToggle.IsOn,
+                TextShadowToggle.IsOn,
+                BorderShadowToggle.IsOn,
                 ArrowBorderToggle.IsOn,
                 GetSelectedColorHex(ArrowBorderColorComboBox, DefaultBorderColor),
                 Clamp((int)Math.Round(ArrowBorderThicknessNumberBox.Value), 1, 8),
-                SharedShadowToggle.IsOn,
+                arrowShadowEnabled,
                 GetSelectedArrowFormStyle().ToString(),
                 Clamp((int)Math.Round(BlurRadiusNumberBox.Value), 1, 25),
+                Clamp((int)Math.Round(BlurFeatherSlider.Value), 0, 40),
                 _blurInvertMode,
                 Clamp(_highlightDimPercent, 0, MaxHighlightDimPercent),
                 _highlightInvertMode,
@@ -2595,102 +2551,6 @@ namespace helvety.screenshots.Views
                 _gpuEffectsEnabled);
 
             SettingsService.SaveEditorUiSettings(settings);
-        }
-
-        private void SyncSharedPrimaryControls()
-        {
-            var supportsColor = ToolSupportsPrimaryColor(_settingsTool);
-            var supportsThickness = ToolSupportsPrimaryThickness(_settingsTool);
-
-            PrimaryColorComboBox.IsEnabled = supportsColor;
-            PickPrimaryColorButton.IsEnabled = supportsColor;
-            PrimaryThicknessSlider.IsEnabled = supportsThickness;
-
-            _isSyncingToolSettings = true;
-            try
-            {
-                if (supportsColor)
-                {
-                    SetComboBoxSelectedColor(PrimaryColorComboBox, GetToolPrimaryColorHex(_settingsTool));
-                }
-
-                if (supportsThickness)
-                {
-                    PrimaryThicknessSlider.Value = GetToolPrimaryThickness(_settingsTool);
-                }
-
-                PrimaryThicknessValueText.Text = $"{(int)Math.Round(PrimaryThicknessSlider.Value)} px";
-            }
-            finally
-            {
-                _isSyncingToolSettings = false;
-            }
-        }
-
-        private static bool ToolSupportsPrimaryColor(EditorToolType tool)
-        {
-            return tool is EditorToolType.Text or EditorToolType.Border or EditorToolType.Arrow;
-        }
-
-        private static bool ToolSupportsPrimaryThickness(EditorToolType tool)
-        {
-            return tool is EditorToolType.Text or EditorToolType.Border or EditorToolType.Arrow;
-        }
-
-        private string GetToolPrimaryColorHex(EditorToolType tool)
-        {
-            return tool switch
-            {
-                EditorToolType.Text => GetSelectedColorHex(TextColorComboBox, DefaultTextColor),
-                EditorToolType.Border => GetSelectedColorHex(BorderColorComboBox, DefaultPrimaryColor),
-                EditorToolType.Arrow => GetSelectedColorHex(ArrowColorComboBox, DefaultPrimaryColor),
-                _ => GetSelectedColorHex(PrimaryColorComboBox, DefaultPrimaryColor)
-            };
-        }
-
-        private int GetToolPrimaryThickness(EditorToolType tool)
-        {
-            return tool switch
-            {
-                EditorToolType.Text => Clamp((int)Math.Round(TextBorderThicknessNumberBox.Value), 1, MaxPrimaryThickness),
-                EditorToolType.Border => Clamp((int)Math.Round(BorderThicknessNumberBox.Value), 1, MaxPrimaryThickness),
-                EditorToolType.Arrow => Clamp((int)Math.Round(ArrowThicknessNumberBox.Value), 1, MaxPrimaryThickness),
-                _ => Clamp((int)Math.Round(PrimaryThicknessSlider.Value), 1, MaxPrimaryThickness)
-            };
-        }
-
-        private void ApplySharedPrimaryColor(string hex)
-        {
-            _isSyncingToolSettings = true;
-            try
-            {
-                SetComboBoxSelectedColor(PrimaryColorComboBox, hex);
-                SetComboBoxSelectedColor(TextColorComboBox, hex);
-                SetComboBoxSelectedColor(BorderColorComboBox, hex);
-                SetComboBoxSelectedColor(ArrowColorComboBox, hex);
-            }
-            finally
-            {
-                _isSyncingToolSettings = false;
-            }
-        }
-
-        private void ApplySharedPrimaryThickness(int thickness)
-        {
-            var normalizedThickness = Clamp(thickness, 1, MaxPrimaryThickness);
-            _isSyncingToolSettings = true;
-            try
-            {
-                PrimaryThicknessSlider.Value = normalizedThickness;
-                PrimaryThicknessValueText.Text = $"{normalizedThickness} px";
-                TextBorderThicknessNumberBox.Value = normalizedThickness;
-                BorderThicknessNumberBox.Value = normalizedThickness;
-                ArrowThicknessNumberBox.Value = normalizedThickness;
-            }
-            finally
-            {
-                _isSyncingToolSettings = false;
-            }
         }
 
         private static void SelectComboItemByContent(ComboBox comboBox, string content)
@@ -2721,9 +2581,13 @@ namespace helvety.screenshots.Views
             _regionCornerRadius = normalizedRadius;
 
             _isSyncingRegionCornerRadius = true;
-            RegionCornerRadiusSlider.Value = normalizedRadius;
+            BorderCornerRadiusSlider.Value = normalizedRadius;
+            BlurCornerRadiusSlider.Value = normalizedRadius;
+            HighlightCornerRadiusSlider.Value = normalizedRadius;
             _isSyncingRegionCornerRadius = false;
-            RegionCornerRadiusValueText.Text = $"{normalizedRadius} px";
+            BorderCornerRadiusValueText.Text = $"{normalizedRadius} px";
+            BlurCornerRadiusValueText.Text = $"{normalizedRadius} px";
+            HighlightCornerRadiusValueText.Text = $"{normalizedRadius} px";
             UpdateSelectionRectangleCornerRadius();
 
             if (!applyToSelectedLayer)
@@ -2739,6 +2603,18 @@ namespace helvety.screenshots.Views
             }
 
             RebuildOverlayVisuals(includeAdorners: true);
+        }
+
+        private void UpdateAllSettingValueTexts()
+        {
+            TextBorderThicknessValueText.Text = $"{Clamp((int)Math.Round(TextBorderThicknessNumberBox.Value), 1, MaxPrimaryThickness)} px";
+            BorderThicknessValueText.Text = $"{Clamp((int)Math.Round(BorderThicknessNumberBox.Value), 1, MaxPrimaryThickness)} px";
+            ArrowBorderThicknessValueText.Text = $"{Clamp((int)Math.Round(ArrowBorderThicknessNumberBox.Value), 1, 8)} px";
+            BorderCornerRadiusValueText.Text = $"{Clamp((int)Math.Round(BorderCornerRadiusSlider.Value), 0, MaxRegionCornerRadius)} px";
+            BlurCornerRadiusValueText.Text = $"{Clamp((int)Math.Round(BlurCornerRadiusSlider.Value), 0, MaxRegionCornerRadius)} px";
+            BlurFeatherValueText.Text = $"{Clamp((int)Math.Round(BlurFeatherSlider.Value), 0, 40)} px";
+            HighlightCornerRadiusValueText.Text = $"{Clamp((int)Math.Round(HighlightCornerRadiusSlider.Value), 0, MaxRegionCornerRadius)} px";
+            HighlightDimValueText.Text = $"{Clamp(_highlightDimPercent, 0, MaxHighlightDimPercent)}%";
         }
 
         private void UpdateSelectionRectangleCornerRadius()
@@ -2791,11 +2667,12 @@ namespace helvety.screenshots.Views
             else if (layer is BlurLayer blurLayer)
             {
                 blurLayer.Radius = Clamp((int)Math.Round(BlurRadiusNumberBox.Value), 1, 25);
-                blurLayer.CornerRadius = _regionCornerRadius;
+                blurLayer.Feather = Clamp((int)Math.Round(BlurFeatherSlider.Value), 0, 40);
+                blurLayer.CornerRadius = Clamp((int)Math.Round(BlurCornerRadiusSlider.Value), 0, MaxRegionCornerRadius);
             }
             else if (layer is HighlightLayer highlightLayer)
             {
-                highlightLayer.CornerRadius = _regionCornerRadius;
+                highlightLayer.CornerRadius = Clamp((int)Math.Round(HighlightCornerRadiusSlider.Value), 0, MaxRegionCornerRadius);
             }
             else if (layer is ArrowLayer arrowLayer)
             {
@@ -2812,7 +2689,7 @@ namespace helvety.screenshots.Views
             textLayer.HasBorder = TextBorderToggle.IsOn;
             textLayer.BorderColorHex = GetSelectedColorHex(TextBorderColorComboBox, DefaultBorderColor);
             textLayer.BorderThickness = Clamp((int)Math.Round(TextBorderThicknessNumberBox.Value), 1, MaxPrimaryThickness);
-            textLayer.HasShadow = SharedShadowToggle.IsOn;
+            textLayer.HasShadow = TextShadowToggle.IsOn;
             textLayer.ShadowOffset = DefaultSharedShadowOffset;
             textLayer.ShadowColorHex = DefaultSharedShadowColor;
             textLayer.FontFamily = GetSelectedFont();
@@ -2823,22 +2700,47 @@ namespace helvety.screenshots.Views
             borderLayer.Thickness = Clamp((int)Math.Round(BorderThicknessNumberBox.Value), 1, 24);
             borderLayer.CornerRadius = _regionCornerRadius;
             borderLayer.ColorHex = GetSelectedColorHex(BorderColorComboBox, DefaultPrimaryColor);
-            borderLayer.HasShadow = SharedShadowToggle.IsOn;
+            borderLayer.HasShadow = BorderShadowToggle.IsOn;
             borderLayer.ShadowColorHex = DefaultSharedShadowColor;
             borderLayer.ShadowOffset = DefaultSharedShadowOffset;
         }
 
         private void ApplyArrowStyleFromUi(ArrowLayer arrowLayer)
         {
+            var formStyle = GetSelectedArrowFormStyle();
             arrowLayer.Thickness = Clamp((int)Math.Round(ArrowThicknessNumberBox.Value), 1, 24);
             arrowLayer.ColorHex = GetSelectedColorHex(ArrowColorComboBox, DefaultPrimaryColor);
             arrowLayer.HasBorder = ArrowBorderToggle.IsOn;
             arrowLayer.BorderColorHex = GetSelectedColorHex(ArrowBorderColorComboBox, DefaultBorderColor);
             arrowLayer.BorderThickness = Clamp((int)Math.Round(ArrowBorderThicknessNumberBox.Value), 1, 8);
-            arrowLayer.HasShadow = SharedShadowToggle.IsOn;
+            arrowLayer.HasShadow = formStyle != ArrowFormStyle.Tapered && ArrowShadowToggle.IsOn;
             arrowLayer.ShadowColorHex = DefaultSharedShadowColor;
             arrowLayer.ShadowOffset = DefaultSharedShadowOffset;
-            arrowLayer.FormStyle = GetSelectedArrowFormStyle();
+            arrowLayer.FormStyle = formStyle;
+        }
+
+        private bool GetCurrentArrowShadowEnabled()
+        {
+            return GetSelectedArrowFormStyle() != ArrowFormStyle.Tapered && ArrowShadowToggle.IsOn;
+        }
+
+        private void UpdateArrowShadowToggleState(bool forceOffWhenUnsupported)
+        {
+            var supportsShadow = GetSelectedArrowFormStyle() != ArrowFormStyle.Tapered;
+            ArrowShadowToggle.IsEnabled = supportsShadow;
+
+            if (!supportsShadow && forceOffWhenUnsupported)
+            {
+                _isSyncingToolSettings = true;
+                try
+                {
+                    ArrowShadowToggle.IsOn = false;
+                }
+                finally
+                {
+                    _isSyncingToolSettings = false;
+                }
+            }
         }
 
         private ArrowFormStyle GetSelectedArrowFormStyle()

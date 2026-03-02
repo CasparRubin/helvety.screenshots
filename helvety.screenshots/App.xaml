@@ -46,6 +46,46 @@
                 <Setter Property="TextWrapping" Value="WrapWholeWords" />
             </Style>
 
+            <Style x:Key="SettingsInlineRowStackPanelStyle" TargetType="StackPanel">
+                <Setter Property="Orientation" Value="Horizontal" />
+                <Setter Property="Spacing" Value="12" />
+                <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+
+            <Style x:Key="SettingsInlineLabelTextStyle" TargetType="TextBlock">
+                <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+
+            <Style x:Key="SettingsInlineControlStyle" TargetType="Control">
+                <Setter Property="VerticalAlignment" Value="Center" />
+            </Style>
+
+            <Style x:Key="SettingsInlineButtonStyle" TargetType="Button" BasedOn="{StaticResource SettingsInlineControlStyle}">
+                <Setter Property="Height" Value="34" />
+            </Style>
+
+            <Style x:Key="SettingsInlineTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource SettingsInlineControlStyle}">
+                <Setter Property="Height" Value="34" />
+            </Style>
+
+            <Style x:Key="SettingsInlineComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource SettingsInlineControlStyle}">
+                <Setter Property="Height" Value="34" />
+            </Style>
+
+            <Style x:Key="SettingsInlineNumberBoxStyle" TargetType="NumberBox" BasedOn="{StaticResource SettingsInlineControlStyle}">
+                <Setter Property="Height" Value="34" />
+            </Style>
+
+            <Style x:Key="SettingsInlineSliderStyle" TargetType="Slider" BasedOn="{StaticResource SettingsInlineControlStyle}">
+                <Setter Property="Height" Value="34" />
+            </Style>
+
+            <Style x:Key="SettingsInlineToggleSwitchStyle" TargetType="ToggleSwitch">
+                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="Margin" Value="0" />
+                <Setter Property="MinHeight" Value="34" />
+            </Style>
+
             <!-- Other app resources here -->
         </ResourceDictionary>
     </Application.Resources>
